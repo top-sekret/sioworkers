@@ -724,7 +724,9 @@ class IsolateExecutor(UnprotectedExecutor):
         # meta file
         self.meta_path = '/tmp/isolate_meta_%s' % self.judging_id
 
+        # limits
         self.time_limit = 0
+        self.memory_limit = 0
 
         execute_command(['isolate', '--cleanup'])
         execute_command(['isolate', '--init'])
@@ -749,6 +751,9 @@ class IsolateExecutor(UnprotectedExecutor):
 
     def load_time_limit(self, limit):
         self.time_limit = limit/1000.0
+
+    def load_memory_limit(self, limit):
+        self.memory_limit = limit
 
     def save_out(self, write_to):
         with open(os.path.join(self.isolated_dir, self.out_filename), 'r') as f:
@@ -789,6 +794,9 @@ class IsolateExecutor(UnprotectedExecutor):
         # wall-time limit
         command.append('--wall-time=%f' % (self.time_limit * 4))
         command.append('--time=%f' % (self.time_limit * 1.1))
+        
+        # memory limit
+        command.append('--mem=%d' % self.memory_limit)
 
         # redirections
         command.append(noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)))
@@ -806,9 +814,11 @@ class IsolateExecutor(UnprotectedExecutor):
         self.create_out()
         if kwargs['time_limit'] is not None:
             self.load_time_limit(kwargs['time_limit'])
+        if kwargs['mem_limit'] is not None:
+            self.load_memory_limit(kwargs['mem_limit'])
 
-        ''' isolate should kill itself, killing it forcefully makes the cpu-greedy evaluated programs stay active
-        causing a huge load increase and slowing down other submissions '''
+        ''' isolate should kill itself, killing it forcefully due to time limit makes the cpu-greedy 
+        evaluated programs stay active causing a huge load increase and slowing down other submissions '''
         kwargs["real_time_limit"] = 10 * 60 * 1000
 
         renv = execute_command(self.build_command(), **kwargs)
@@ -829,14 +839,13 @@ class IsolateExecutor(UnprotectedExecutor):
         else:
             raise RuntimeError('Execution time could not be determined.')
 
-        # get exitcode
-        if 'exitcode' in isolate_meta.keys():
-            renv['return_code'] = int(isolate_meta['exitcode'])
-
         # set result code
         if renv['time_used'] >= self.time_limit*1000:
             renv['result_string'] = 'time limit exceeded'
             renv['result_code'] = 'TLE'
+        elif 'exitsig' in isolate_meta.keys():
+            renv['result_string'] = 'program exited due to signal %s' % isolate_meta['exitsig']
+            renv['result_code'] = 'RE'
         elif renv['return_code'] == 0:
             renv['result_string'] = 'ok'
             renv['result_code'] = 'OK'
@@ -847,7 +856,6 @@ class IsolateExecutor(UnprotectedExecutor):
             renv['result_string'] = 'program exited with code %d' % renv['return_code']
             renv['result_code'] = 'RE'
 
-        renv['mem_used'] = 0 if 'max_rss' not in isolate_meta.keys() else isolate_meta['max_rss']
         renv['num_syscalls'] = 0
 
         return renv
