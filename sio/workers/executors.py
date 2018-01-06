@@ -17,11 +17,14 @@ from sio.workers.util import ceil_ms2s, ms2s, s2ms, path_join_abs, \
 
 logger = logging.getLogger(__name__)
 
+
 class ExecError(RuntimeError):
     pass
 
+
 class noquote(str):
     pass
+
 
 def _argquote(s):
     if isinstance(s, noquote):
@@ -30,11 +33,13 @@ def _argquote(s):
         s = ' '.join(map(_argquote, s))
     return "'" + s.replace("'", "'\\''") + "'"
 
+
 def shellquote(s):
     if isinstance(s, list):
         return " ".join(map(_argquote, s))
     else:
         return s
+
 
 def ulimit(command, mem_limit=None, time_limit=None, **kwargs):
     # This could be nicely replaced with preexec_fn + resource.setrlimit, but
@@ -48,9 +53,10 @@ def ulimit(command, mem_limit=None, time_limit=None, **kwargs):
 
     if time_limit:
         command = ['ulimit', '-t', str(ceil_ms2s(time_limit)),
-                    noquote('&&')] + command
+                   noquote('&&')] + command
 
     return command
+
 
 def execute_command(command, env=None, split_lines=False, stdin=None,
                     stdout=None, stderr=None, forward_stderr=False,
@@ -110,7 +116,7 @@ def execute_command(command, env=None, split_lines=False, stdin=None,
                          stdin=stdin,
                          stdout=stdout,
                          stderr=forward_stderr and subprocess.STDOUT
-                                                or stderr,
+                                or stderr,
                          shell=True,
                          close_fds=True,
                          universal_newlines=True,
@@ -123,6 +129,7 @@ def execute_command(command, env=None, split_lines=False, stdin=None,
         def oot_killer():
             ret_env['real_time_killed'] = True
             os.killpg(p.pid, signal.SIGKILL)
+
         kill_timer = Timer(ms2s(real_time_limit), oot_killer)
         kill_timer.start()
 
@@ -135,7 +142,7 @@ def execute_command(command, env=None, split_lines=False, stdin=None,
     ret_env['real_time_used'] = s2ms(perf_timer.elapsed)
 
     logger.debug('Command "%s" exited with code %d, took %.2fs',
-            str(command), rc, perf_timer.elapsed)
+                 str(command), rc, perf_timer.elapsed)
 
     devnull.close()
     if capture_output:
@@ -150,6 +157,7 @@ def execute_command(command, env=None, split_lines=False, stdin=None,
                         % (command, rc))
 
     return ret_env
+
 
 class BaseExecutor(object):
     """Base class for Executors: command environment managers.
@@ -252,12 +260,12 @@ class BaseExecutor(object):
         raise NotImplementedError('BaseExecutor is abstract!')
 
     def __call__(self, command, env=None, split_lines=False,
-                ignore_errors=False, extra_ignore_errors=(),
-                stdin=None, stdout=None, stderr=None,
-                forward_stderr=False, capture_output=False,
-                mem_limit=None, time_limit=None,
-                real_time_limit=None, output_limit=None, environ={},
-                environ_prefix='', **kwargs):
+                 ignore_errors=False, extra_ignore_errors=(),
+                 stdin=None, stdout=None, stderr=None,
+                 forward_stderr=False, capture_output=False,
+                 mem_limit=None, time_limit=None,
+                 real_time_limit=None, output_limit=None, environ={},
+                 environ_prefix='', **kwargs):
         if not isinstance(command, list):
             command = [noquote(command), ]
 
@@ -265,9 +273,9 @@ class BaseExecutor(object):
             mem_limit = environ.get(environ_prefix + 'mem_limit', mem_limit)
             time_limit = environ.get(environ_prefix + 'time_limit', time_limit)
             real_time_limit = environ.get(
-                    environ_prefix + 'real_time_limit', real_time_limit)
+                environ_prefix + 'real_time_limit', real_time_limit)
             output_limit = environ.get(
-                    environ_prefix + 'output_limit', output_limit)
+                environ_prefix + 'output_limit', output_limit)
 
         if not env:
             env = os.environ.copy()
@@ -276,13 +284,14 @@ class BaseExecutor(object):
         env['LANGUAGE'] = 'en_US.UTF-8'
 
         return self._execute(command, env=env, split_lines=split_lines,
-                ignore_errors=ignore_errors,
-                extra_ignore_errors=extra_ignore_errors,
-                stdin=stdin, stdout=stdout, stderr=stderr,
-                mem_limit=mem_limit, time_limit=time_limit,
-                real_time_limit=real_time_limit, output_limit=output_limit,
-                forward_stderr=forward_stderr, capture_output=capture_output,
-                environ=environ, environ_prefix=environ_prefix, **kwargs)
+                             ignore_errors=ignore_errors,
+                             extra_ignore_errors=extra_ignore_errors,
+                             stdin=stdin, stdout=stdout, stderr=stderr,
+                             mem_limit=mem_limit, time_limit=time_limit,
+                             real_time_limit=real_time_limit, output_limit=output_limit,
+                             forward_stderr=forward_stderr, capture_output=capture_output,
+                             environ=environ, environ_prefix=environ_prefix, **kwargs)
+
 
 class UnprotectedExecutor(BaseExecutor):
     """Executes command in completely unprotected manner.
@@ -305,7 +314,10 @@ class UnprotectedExecutor(BaseExecutor):
         renv = execute_command(command, **kwargs)
         return renv
 
+
 TIME_OUTPUT_RE = re.compile(r'^user\s+([0-9]+)m([0-9.]+)s$', re.MULTILINE)
+
+
 class DetailedUnprotectedExecutor(UnprotectedExecutor):
     """This executor returns extended process status (over UnprotectedExecutor.)
 
@@ -327,7 +339,7 @@ class DetailedUnprotectedExecutor(UnprotectedExecutor):
         kwargs['stderr'] = stderr
         kwargs['forward_stderr'] = False
         renv = super(DetailedUnprotectedExecutor, self)._execute(command,
-                                                                    **kwargs)
+                                                                 **kwargs)
         stderr.seek(0)
         output = stderr.read()
         stderr.close()
@@ -339,7 +351,7 @@ class DetailedUnprotectedExecutor(UnprotectedExecutor):
             renv['time_used'] = renv['real_time_used']
         else:
             raise RuntimeError('Could not find output of time program. '
-                'Captured output: %s' % output)
+                               'Captured output: %s' % output)
 
         if kwargs['time_limit'] is not None \
                 and renv['time_used'] >= 0.95 * kwargs['time_limit']:
@@ -357,13 +369,14 @@ class DetailedUnprotectedExecutor(UnprotectedExecutor):
             renv['result_code'] = 'RE'
         else:
             renv['result_string'] = 'program exited with code %d' \
-                                                        % renv['return_code']
+                                    % renv['return_code']
             renv['result_code'] = 'RE'
 
         renv['mem_used'] = 0
         renv['num_syscalls'] = 0
 
         return renv
+
 
 class SandboxExecutor(UnprotectedExecutor):
     """SandboxedExecutor is intended to run programs delivered in ``sandbox`` package.
@@ -403,7 +416,7 @@ class SandboxExecutor(UnprotectedExecutor):
 
     def _env_paths(self, suffix):
         return "%s:%s" % (path.join(self.path, suffix),
-                            path.join(self.path, 'usr', suffix))
+                          path.join(self.path, 'usr', suffix))
 
     def _execute(self, command, **kwargs):
         if not kwargs.get('use_path', False) and command[0][0] != '/':
@@ -417,14 +430,15 @@ class SandboxExecutor(UnprotectedExecutor):
 
         return super(SandboxExecutor, self)._execute(command, **kwargs)
 
+
 class _SIOSupervisedExecutor(SandboxExecutor):
     _supervisor_codes = {
-            0: 'OK',
-            120: 'OLE',
-            121: 'RV',
-            124: 'MLE',
-            125: 'TLE'
-        }
+        0: 'OK',
+        120: 'OLE',
+        121: 'RV',
+        124: 'MLE',
+        125: 'TLE'
+    }
 
     def __init__(self, sandbox_name):
         super(_SIOSupervisedExecutor, self).__init__(sandbox_name)
@@ -435,10 +449,10 @@ class _SIOSupervisedExecutor(SandboxExecutor):
     def _execute(self, command, **kwargs):
         env = kwargs.get('env')
         env.update({
-                    'MEM_LIMIT': kwargs['mem_limit'] or 64 * 2**10,
-                    'TIME_LIMIT': kwargs['time_limit'] or 30000,
-                    'OUT_LIMIT': kwargs['output_limit'] or 50 * 2**20,
-                    })
+            'MEM_LIMIT': kwargs['mem_limit'] or 64 * 2 ** 10,
+            'TIME_LIMIT': kwargs['time_limit'] or 30000,
+            'OUT_LIMIT': kwargs['output_limit'] or 50 * 2 ** 20,
+        })
 
         if kwargs['real_time_limit']:
             env['HARD_LIMIT'] = 1 + ceil_ms2s(kwargs['real_time_limit'])
@@ -456,9 +470,9 @@ class _SIOSupervisedExecutor(SandboxExecutor):
             result_file = tempfile.NamedTemporaryFile(dir=tempcwd())
             kwargs['ignore_errors'] = True
             renv = execute_command(
-                        command + [noquote('3>'), result_file.name],
-                         **kwargs
-                        )
+                command + [noquote('3>'), result_file.name],
+                **kwargs
+            )
 
             if 'real_time_killed' in renv:
                 raise ExecError('Supervisor exceeded realtime limit')
@@ -472,9 +486,9 @@ class _SIOSupervisedExecutor(SandboxExecutor):
             renv['result_string'] = result_file.readline().strip()
             result_file.close()
             for num, key in enumerate(('result_code', 'time_used',
-                        None, 'mem_used', 'num_syscalls')):
-                    if key:
-                        renv[key] = int(status_line[num])
+                                       None, 'mem_used', 'num_syscalls')):
+                if key:
+                    renv[key] = int(status_line[num])
 
             result_code = self._supervisor_result_to_code(renv['result_code'])
 
@@ -492,10 +506,11 @@ class _SIOSupervisedExecutor(SandboxExecutor):
 
         if result_code != 'OK' and not ignore_errors and not \
                 (result_code != 'RV' and renv['return_code'] in \
-                        extra_ignore_errors):
+                 extra_ignore_errors):
             raise ExecError('Failed to execute command: %s. Reason: %s'
-                        % (command, renv['result_string']))
+                            % (command, renv['result_string']))
         return renv
+
 
 class VCPUExecutor(_SIOSupervisedExecutor):
     """Runs program in controlled environment while counting CPU instructions.
@@ -521,8 +536,8 @@ class VCPUExecutor(_SIOSupervisedExecutor):
 
     def _execute(self, command, **kwargs):
         command = [os.path.join(self.rpath, 'pin-supervisor',
-                                         'supervisor-bin', 'supervisor')] + \
-                    self.options + ['--'] + command
+                                'supervisor-bin', 'supervisor')] + \
+                  self.options + ['--'] + command
         return super(VCPUExecutor, self)._execute(command, **kwargs)
 
 
@@ -586,6 +601,7 @@ class SupervisedExecutor(_SIOSupervisedExecutor):
                   options + command
         with java:
             return super(SupervisedExecutor, self)._execute(command, **kwargs)
+
 
 class PRootExecutor(BaseExecutor):
     """PRootExecutor executor mimics ``chroot`` with ``mount --bind``.
@@ -686,7 +702,7 @@ class PRootExecutor(BaseExecutor):
 
         options = self.options + kwargs.pop('proot_options', [])
         command = [path.join('proot', 'proot')] + options + \
-                    [path.join(self.rpath, 'bin', 'sh'), '-c', command]
+                  [path.join(self.rpath, 'bin', 'sh'), '-c', command]
 
         return self.proot._execute(command, **kwargs)
 
@@ -713,13 +729,14 @@ class IsolateExecutor(UnprotectedExecutor):
         self.mapped_dir = '/tmp/shared'
 
         # subdirectories and their flags
-        self.dirs = [['r', None], ['rw', 'rw'], 
-            ['/bin', '_del'], ['/dev', '_del'], ['/lib', '_del'], ['/lib64', '_del'], ['/usr', '_del']]
+        self.dirs = [['r', None], ['rw', 'rw'],
+                     ['/bin', '_del'], ['/dev', '_del'], ['/lib', '_del'], ['/lib64', '_del'], ['/usr', '_del']]
 
         # filenames
         self.exe_filename = 'r/exe'
         self.in_filename = 'r/in'
         self.out_filename = 'rw/out'
+        self._exe_path = None
 
         # meta file
         self.meta_path = '/tmp/isolate_meta_%s' % self.judging_id
@@ -736,37 +753,47 @@ class IsolateExecutor(UnprotectedExecutor):
             if d[1] != '_del':
                 execute_command(['mkdir', os.path.join(self.isolated_dir, d[0])])
 
-    def load_exe(self, exe_path):
+    @property
+    def exe(self):
+        return self._exe_path
+
+    @exe.setter
+    def exe(self, exe_path):
         isolated_exe = os.path.join(self.isolated_dir, self.exe_filename)
         execute_command(['cp', exe_path, isolated_exe])
         execute_command(['chmod', '755', isolated_exe])
+        self._exe_path = exe_path
 
-    def load_in(self, contents):
+    @property
+    def input(self):
+        with open(os.path.join(self.isolated_dir, self.in_filename), 'r') as f:
+            contents = f.read()
+        return contents
+
+    @input.setter
+    def input(self, value):
         with open(os.path.join(self.isolated_dir, self.in_filename), 'w+') as f:
-            f.write(contents)
+            f.write(value)
 
     def create_out(self):
         open(os.path.join(self.isolated_dir, self.out_filename), 'a').close()
         execute_command(['chmod', '666', os.path.join(self.isolated_dir, self.out_filename)])
 
-    def load_time_limit(self, limit):
-        self.time_limit = limit/1000.0
-
-    def load_memory_limit(self, limit):
-        self.memory_limit = limit
-
-    def save_out(self, write_to):
+    @property
+    def output(self):
         with open(os.path.join(self.isolated_dir, self.out_filename), 'r') as f:
-            write_to.write(f.read())
+            contents = f.read()
+        return contents
 
-    def get_meta(self):
-        isolate_meta = dict()
+    @property
+    def meta(self):
+        res = dict()
         with open(self.meta_path) as mf:
             for l in mf.read().split('\n'):
                 spl = l.split(':')
                 if len(spl) >= 2:
-                    isolate_meta[spl[0].strip()] = spl[1].strip()
-        return isolate_meta
+                    res[spl[0].strip()] = spl[1].strip()
+        return res
 
     def cleanup(self):
         execute_command(['rm', '-R', self.isolated_dir])
@@ -779,22 +806,23 @@ class IsolateExecutor(UnprotectedExecutor):
         # directory rules
         for d in self.dirs:
             if d[1] is None:
-                command.append(noquote('--dir="%s"="%s"'% 
-                    (os.path.join(self.mapped_dir, d[0]), os.path.join(self.isolated_dir, d[0]))))
+                command.append(noquote('--dir="%s"="%s"' %
+                                       (os.path.join(self.mapped_dir, d[0]), os.path.join(self.isolated_dir, d[0]))))
             elif d[1] == '_del':
                 command.append(noquote('--dir="%s"='
-                        % os.path.join(self.mapped_dir, d[0])))
+                                       % os.path.join(self.mapped_dir, d[0])))
             else:
-                command.append(noquote('--dir="%s"="%s":%s'%
-                    (os.path.join(self.mapped_dir, d[0]), os.path.join(self.isolated_dir, d[0]), d[1])))
+                command.append(noquote('--dir="%s"="%s":%s' %
+                                       (os.path.join(self.mapped_dir, d[0]), os.path.join(self.isolated_dir, d[0]),
+                                        d[1])))
 
         # meta file
-        command.append(noquote('--meta="%s"' % self.meta_path),)
+        command.append(noquote('--meta="%s"' % self.meta_path), )
 
         # wall-time limit
         command.append('--wall-time=%f' % (self.time_limit * 4))
         command.append('--time=%f' % (self.time_limit * 1.1))
-        
+
         # memory limit
         command.append('--mem=%d' % self.memory_limit)
 
@@ -809,13 +837,14 @@ class IsolateExecutor(UnprotectedExecutor):
 
     def _execute(self, command, **kwargs):
 
-        self.load_exe(command[0])
-        self.load_in(kwargs['stdin'].read())
+        self.exe = command[0]
+        self.input = kwargs['stdin'].read()
         self.create_out()
+
         if kwargs['time_limit'] is not None:
-            self.load_time_limit(kwargs['time_limit'])
+            self.time_limit = kwargs['time_limit']/1000.0
         if kwargs['mem_limit'] is not None:
-            self.load_memory_limit(kwargs['mem_limit'])
+            self.memory_limit = kwargs['mem_limit']
 
         ''' isolate should kill itself, killing it forcefully due to time limit makes the cpu-greedy 
         evaluated programs stay active causing a huge load increase and slowing down other submissions '''
@@ -823,9 +852,9 @@ class IsolateExecutor(UnprotectedExecutor):
 
         renv = execute_command(self.build_command(), **kwargs)
 
-        self.save_out(kwargs['stdout'])
+        kwargs['stdout'].write(self.output)
 
-        isolate_meta = self.get_meta()
+        isolate_meta = self.meta
 
         self.cleanup()
 
@@ -840,7 +869,7 @@ class IsolateExecutor(UnprotectedExecutor):
             raise RuntimeError('Execution time could not be determined.')
 
         # set result code
-        if renv['time_used'] >= self.time_limit*1000:
+        if renv['time_used'] >= self.time_limit * 1000:
             renv['result_string'] = 'time limit exceeded'
             renv['result_code'] = 'TLE'
         elif 'exitsig' in isolate_meta.keys():
