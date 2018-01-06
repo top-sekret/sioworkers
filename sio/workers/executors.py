@@ -8,6 +8,7 @@ import re
 import sys
 import traceback
 from os import path
+import random
 
 from sio.workers import util, elf_loader_patch
 from sio.workers.sandbox import get_sandbox
@@ -524,6 +525,7 @@ class VCPUExecutor(_SIOSupervisedExecutor):
                     self.options + ['--'] + command
         return super(VCPUExecutor, self)._execute(command, **kwargs)
 
+
 class SupervisedExecutor(_SIOSupervisedExecutor):
     """Executes program in supervised mode.
 
@@ -697,3 +699,155 @@ class PRootExecutor(BaseExecutor):
     def path(self):
         """Contains real, absolute path to sandbox root."""
         return self.chroot.path
+
+
+class IsolateExecutor(UnprotectedExecutor):
+
+    def __init__(self, **kwargs):
+
+        # get some "unique" judging id
+        self.judging_id = '%04x' % random.randint(0x0000, 0xffff)
+
+        # shared directory
+        self.isolated_dir = '/tmp/isolate_%s' % self.judging_id
+        self.mapped_dir = '/tmp/shared'
+
+        # subdirectories and their flags
+        self.dirs = [['r', None], ['rw', 'rw'], 
+            ['/bin', '_del'], ['/dev', '_del'], ['/lib', '_del'], ['/lib64', '_del'], ['/usr', '_del']]
+
+        # filenames
+        self.exe_filename = 'r/exe'
+        self.in_filename = 'r/in'
+        self.out_filename = 'rw/out'
+
+        # meta file
+        self.meta_path = '/tmp/isolate_meta_%s' % self.judging_id
+
+        self.time_limit = 0
+
+        execute_command(['isolate', '--cleanup'])
+        execute_command(['isolate', '--init'])
+
+        execute_command(['mkdir', self.isolated_dir])
+        for d in self.dirs:
+            if d[1] != '_del':
+                execute_command(['mkdir', os.path.join(self.isolated_dir, d[0])])
+
+    def load_exe(self, exe_path):
+        isolated_exe = os.path.join(self.isolated_dir, self.exe_filename)
+        execute_command(['cp', exe_path, isolated_exe])
+        execute_command(['chmod', '755', isolated_exe])
+
+    def load_in(self, contents):
+        with open(os.path.join(self.isolated_dir, self.in_filename), 'w+') as f:
+            f.write(contents)
+
+    def create_out(self):
+        open(os.path.join(self.isolated_dir, self.out_filename), 'a').close()
+        execute_command(['chmod', '666', os.path.join(self.isolated_dir, self.out_filename)])
+
+    def load_time_limit(self, limit):
+        self.time_limit = limit/1000.0
+
+    def save_out(self, write_to):
+        with open(os.path.join(self.isolated_dir, self.out_filename), 'r') as f:
+            write_to.write(f.read())
+
+    def get_meta(self):
+        isolate_meta = dict()
+        with open(self.meta_path) as mf:
+            for l in mf.read().split('\n'):
+                spl = l.split(':')
+                if len(spl) >= 2:
+                    isolate_meta[spl[0].strip()] = spl[1].strip()
+        return isolate_meta
+
+    def cleanup(self):
+        execute_command(['rm', '-R', self.isolated_dir])
+        execute_command(['rm', self.meta_path])
+
+    def build_command(self):
+
+        command = ['isolate']
+
+        # directory rules
+        for d in self.dirs:
+            if d[1] is None:
+                command.append(noquote('--dir="%s"="%s"'% 
+                    (os.path.join(self.mapped_dir, d[0]), os.path.join(self.isolated_dir, d[0]))))
+            elif d[1] == '_del':
+                command.append(noquote('--dir="%s"='
+                        % os.path.join(self.mapped_dir, d[0])))
+            else:
+                command.append(noquote('--dir="%s"="%s":%s'%
+                    (os.path.join(self.mapped_dir, d[0]), os.path.join(self.isolated_dir, d[0]), d[1])))
+
+        # meta file
+        command.append(noquote('--meta="%s"' % self.meta_path),)
+
+        # wall-time limit
+        command.append('--wall-time=%f' % (self.time_limit * 4))
+        command.append('--time=%f' % (self.time_limit * 1.1))
+
+        # redirections
+        command.append(noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)))
+        command.append(noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.out_filename)))
+
+        # the executable
+        command += ['--run', '--', os.path.join(self.mapped_dir, self.exe_filename)]
+
+        return command
+
+    def _execute(self, command, **kwargs):
+
+        self.load_exe(command[0])
+        self.load_in(kwargs['stdin'].read())
+        self.create_out()
+        if kwargs['time_limit'] is not None:
+            self.load_time_limit(kwargs['time_limit'])
+
+        ''' isolate should kill itself, killing it forcefully makes the cpu-greedy evaluated programs stay active
+        causing a huge load increase and slowing down other submissions '''
+        kwargs["real_time_limit"] = 10 * 60 * 1000
+
+        renv = execute_command(self.build_command(), **kwargs)
+
+        self.save_out(kwargs['stdout'])
+
+        isolate_meta = self.get_meta()
+
+        self.cleanup()
+
+        # get the time
+        if 'time' in isolate_meta.keys():
+            renv['time_used'] = int(float(isolate_meta['time']) * 1000)
+        elif 'time-wall' in isolate_meta.keys():
+            renv['time_used'] = int(float(isolate_meta['time-wall']) * 1000)
+        elif 'real_time_killed' in renv:
+            renv['time_used'] = renv['real_time_used']
+        else:
+            raise RuntimeError('Execution time could not be determined.')
+
+        # get exitcode
+        if 'exitcode' in isolate_meta.keys():
+            renv['return_code'] = int(isolate_meta['exitcode'])
+
+        # set result code
+        if renv['time_used'] >= self.time_limit*1000:
+            renv['result_string'] = 'time limit exceeded'
+            renv['result_code'] = 'TLE'
+        elif renv['return_code'] == 0:
+            renv['result_string'] = 'ok'
+            renv['result_code'] = 'OK'
+        elif renv['return_code'] > 128:
+            renv['result_string'] = 'program exited due to signal %d' % os.WTERMSIG(renv['return_code'])
+            renv['result_code'] = 'RE'
+        else:
+            renv['result_string'] = 'program exited with code %d' % renv['return_code']
+            renv['result_code'] = 'RE'
+
+        renv['mem_used'] = 0 if 'max_rss' not in isolate_meta.keys() else isolate_meta['max_rss']
+        renv['num_syscalls'] = 0
+
+        return renv
