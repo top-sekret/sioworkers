@@ -721,6 +721,17 @@ class PRootExecutor(BaseExecutor):
 
 class IsolateExecutor(UnprotectedExecutor):
 
+    def get_boxid(self):
+        dirs = os.listdir('/var/local/lib/isolate')
+        used = [-1]
+        for d in dirs:
+            try:
+                used.append(int(d))
+            except ValueError:
+                pass
+        top = max(used)
+        return top + random.randint(1, 10)
+
     def __enter__(self):
 
         self.debug = []
@@ -731,8 +742,8 @@ class IsolateExecutor(UnprotectedExecutor):
             self.config = json.load(config_file)
 
         # get some "unique" judging id
-        self.judging_id = '%04x' % random.randint(0x0000, 0xffff)
-
+        self.judging_id = '%08x' % random.randint(0x0000, 0xffffffff)
+        self.box_id = self.get_boxid()
         # shared directory
         self.isolate_root = '/tmp/isolate_%s' % self.judging_id
         self.mapped_dir = '/tmp/shared'
@@ -746,11 +757,13 @@ class IsolateExecutor(UnprotectedExecutor):
 
         self.time_multiplier = 1.0
 
-        try:
-            execute_command(['isolate'] + self.config_get(['flags', 'cleanup']) + ['--cleanup'])
-        except ExecError:
-            pass
-        execute_command(['isolate'] + self.config_get(['flags', 'init']) + ['--init'])
+        retry = True
+        while retry:
+            try:
+                execute_command(['isolate', '--box-id=%d' % self.box_id] + self.config_get(['flags', 'init']) + ['--init'])
+                retry = False
+            except ExecError:
+                self.box_id = self.get_boxid()
 
         execute_command(['mkdir', self.isolate_root])
         for d in self.config_get(['dirs']):
@@ -776,6 +789,7 @@ class IsolateExecutor(UnprotectedExecutor):
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.sandbox.__exit__(exc_type, exc_value, traceback)
+        execute_command(['isolate', '--box-id=%d' % self.box_id] + self.config_get(['flags', 'cleanup']) + ['--cleanup'])
 
     def config_get(self, field, config=None, origf=None):
         if origf is None:
@@ -857,7 +871,7 @@ class IsolateExecutor(UnprotectedExecutor):
 
     def build_command(self, extra_flags=None):
 
-        command = ['isolate']
+        command = ['isolate', '--box-id=%d' % self.box_id]
 
         # directory rules
         for d in self.config_get(['dirs']):
