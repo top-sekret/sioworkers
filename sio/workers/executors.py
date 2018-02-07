@@ -723,6 +723,8 @@ class IsolateExecutor(UnprotectedExecutor):
 
     def __enter__(self):
 
+        self.debug = []
+
         self.sandbox.__enter__()
 
         with open(os.path.join(self.sandbox.path, 'config.json')) as config_file:
@@ -756,9 +758,19 @@ class IsolateExecutor(UnprotectedExecutor):
 
         for d in self.config_get(['dirs']):
             if d.get('origin') is not None:
-                execute_command(['cp', '-RTs',
+                execute_command(['cp', '-RT',
                                  os.path.join(self.sandbox.path, d.get('origin')),
                                  os.path.join(self.isolate_root, d.get('path'))])
+                self.debug.append("hello!")
+
+        chmods = self.config_get(['misc', 'chmod'])
+        for f in chmods.keys():
+            execute_command(['chmod', chmods[f], noquote(os.path.join(self.isolate_root, f))])
+
+        touches = self.config_get(['misc', 'touch'])
+        for t in touches:
+            open(os.path.join(self.isolate_root, t), 'a').close()
+            execute_command(['chmod', '666', os.path.join(self.isolate_root, t)])
 
         return self
 
@@ -812,9 +824,20 @@ class IsolateExecutor(UnprotectedExecutor):
             contents = f.read()
         return contents
 
+    def get_ic(self):
+        w = open(os.path.join(self.isolate_root, 'interface/writeable/hic_output')).read().split()
+        if len(w) < 1:
+            return None
+        else:
+            return w[0]
+
+
     @property
     def meta(self):
         res = dict()
+        hic = self.get_ic()
+        if hic is not None:
+            res['hic'] = hic;
         try:
             with open(self.meta_path) as mf:
                 for l in mf.read().split('\n'):
@@ -870,15 +893,16 @@ class IsolateExecutor(UnprotectedExecutor):
         command += self.config_get(['flags', 'run'])
 
         # the executable
-        command += ['--run', '--', self.config_get(['run', 'cmdline'])]
-
-        #raise RuntimeError(" ".join(command))
+        command += ['--run', '--'] + self.config_get(['run', 'cmdline'])
 
         return command
 
+    def to_secs(self, ic):
+        return float(ic)/(2*10**6)
+
     def get_time(self, renv):
-        if 'time' in self.meta.keys():
-            return int(self.time_multiplier * float(self.meta['time']) * 1000)
+        if 'hic' in self.meta.keys():
+            return self.to_secs(self.meta['hic'])
         elif 'time-wall' in self.meta.keys():
             return int(self.time_multiplier * float(self.meta['time-wall']) * 1000)
         else:
