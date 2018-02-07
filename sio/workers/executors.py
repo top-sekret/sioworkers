@@ -9,6 +9,7 @@ import sys
 import traceback
 from os import path
 import random
+import json
 
 from sio.workers import util, elf_loader_patch
 from sio.workers.sandbox import get_sandbox
@@ -717,26 +718,22 @@ class PRootExecutor(BaseExecutor):
         return self.chroot.path
 
 
+
 class IsolateExecutor(UnprotectedExecutor):
 
-    def __init__(self, **kwargs):
+    def __enter__(self):
+
+        self.sandbox.__enter__()
+
+        with open(os.path.join(self.sandbox.path, 'config.json')) as config_file:
+            self.config = json.load(config_file)
 
         # get some "unique" judging id
         self.judging_id = '%04x' % random.randint(0x0000, 0xffff)
 
         # shared directory
-        self.isolated_dir = '/tmp/isolate_%s' % self.judging_id
+        self.isolate_root = '/tmp/isolate_%s' % self.judging_id
         self.mapped_dir = '/tmp/shared'
-
-        # subdirectories and their flags
-        self.dirs = [['r', None], ['rw', 'rw'],
-                     ['/bin', '_del'], ['/dev', '_del'], ['/lib', '_del'], ['/lib64', '_del'], ['/usr', '_del']]
-
-        # filenames
-        self.exe_filename = 'r/exe'
-        self.in_filename = 'r/in'
-        self.out_filename = 'rw/out'
-        self._exe_path = None
 
         # meta file
         self.meta_path = '/tmp/isolate_meta_%s' % self.judging_id
@@ -745,95 +742,176 @@ class IsolateExecutor(UnprotectedExecutor):
         self.time_limit = 0
         self.memory_limit = 0
 
-        execute_command(['isolate', '--cleanup'])
-        execute_command(['isolate', '--init'])
+        self.time_multiplier = 1.0
 
-        execute_command(['mkdir', self.isolated_dir])
-        for d in self.dirs:
-            if d[1] != '_del':
-                execute_command(['mkdir', os.path.join(self.isolated_dir, d[0])])
+        try:
+            execute_command(['isolate'] + self.config_get(['flags', 'cleanup']) + ['--cleanup'])
+        except ExecError:
+            pass
+        execute_command(['isolate'] + self.config_get(['flags', 'init']) + ['--init'])
+
+        execute_command(['mkdir', self.isolate_root])
+        for d in self.config_get(['dirs']):
+                execute_command(['mkdir', '-p', os.path.join(self.isolate_root, d.get('path'))])
+
+        for d in self.config_get(['dirs']):
+            if d.get('origin') is not None:
+                execute_command(['cp', '-RTs',
+                                 os.path.join(self.sandbox.path, d.get('origin')),
+                                 os.path.join(self.isolate_root, d.get('path'))])
+
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.sandbox.__exit__(exc_type, exc_value, traceback)
+
+    def config_get(self, field, config=None, origf=None):
+        if origf is None:
+            origf = field
+        if config is None:
+            config = self.config
+        if len(field) == 1:
+            return config.get(field[0])
+        else:
+            try:
+                return self.config_get(field[1:], config.get(field[0], {}), origf=origf)
+            except AttributeError:
+                raise RuntimeError("\n\n%s\n\n%s\n\n"%(str(config), str(origf)))
+
+    def __init__(self, sandbox='isolate-sandbox'):
+        self.sandbox = get_sandbox(sandbox)
 
     @property
     def exe(self):
-        return self._exe_path
+        return None
 
     @exe.setter
     def exe(self, exe_path):
-        isolated_exe = os.path.join(self.isolated_dir, self.exe_filename)
+        isolated_exe = os.path.join(self.isolate_root, self.config_get(['interface', 'exe', 'path']))
         execute_command(['cp', exe_path, isolated_exe])
         execute_command(['chmod', '755', isolated_exe])
-        self._exe_path = exe_path
 
     @property
     def input(self):
-        with open(os.path.join(self.isolated_dir, self.in_filename), 'r') as f:
+        with open(os.path.join(self.isolate_root, self.config_get(['interface', 'in', 'path'])), 'r') as f:
             contents = f.read()
         return contents
 
     @input.setter
     def input(self, value):
-        with open(os.path.join(self.isolated_dir, self.in_filename), 'w+') as f:
+        with open(os.path.join(self.isolate_root, self.config_get(['interface', 'in', 'path'])), 'w+') as f:
             f.write(value)
 
     def create_out(self):
-        open(os.path.join(self.isolated_dir, self.out_filename), 'a').close()
-        execute_command(['chmod', '666', os.path.join(self.isolated_dir, self.out_filename)])
+        open(os.path.join(self.isolate_root, self.config_get(['interface', 'out', 'path'])), 'a').close()
+        execute_command(['chmod', '666', os.path.join(self.isolate_root, self.config_get(['interface', 'out', 'path']))])
 
     @property
     def output(self):
-        with open(os.path.join(self.isolated_dir, self.out_filename), 'r') as f:
+        with open(os.path.join(self.isolate_root, self.config_get(['interface', 'out', 'path'])), 'r') as f:
             contents = f.read()
         return contents
 
     @property
     def meta(self):
         res = dict()
-        with open(self.meta_path) as mf:
-            for l in mf.read().split('\n'):
-                spl = l.split(':')
-                if len(spl) >= 2:
-                    res[spl[0].strip()] = spl[1].strip()
+        try:
+            with open(self.meta_path) as mf:
+                for l in mf.read().split('\n'):
+                    spl = l.split(':')
+                    if len(spl) >= 2:
+                        res[spl[0].strip()] = spl[1].strip()
+        except IOError:
+            pass
         return res
 
     def cleanup(self):
-        execute_command(['rm', '-R', self.isolated_dir])
-        execute_command(['rm', self.meta_path])
+        execute_command(['rm', '-R', self.isolate_root])
+        try:
+            execute_command(['rm', self.meta_path])
+        except ExecError:
+            pass
 
-    def build_command(self):
+    def build_command(self, extra_flags=None):
 
         command = ['isolate']
 
         # directory rules
-        for d in self.dirs:
-            if d[1] is None:
-                command.append(noquote('--dir="%s"="%s"' %
-                                       (os.path.join(self.mapped_dir, d[0]), os.path.join(self.isolated_dir, d[0]))))
-            elif d[1] == '_del':
-                command.append(noquote('--dir="%s"='
-                                       % os.path.join(self.mapped_dir, d[0])))
-            else:
+        for d in self.config_get(['dirs']):
+            if d['permissions'] != 'r':
                 command.append(noquote('--dir="%s"="%s":%s' %
-                                       (os.path.join(self.mapped_dir, d[0]), os.path.join(self.isolated_dir, d[0]),
-                                        d[1])))
+                                       (os.path.join(self.mapped_dir, d['map_to']),
+                                        os.path.join(self.isolate_root, d['path']),
+                                        d['permissions'])))
+            else:
+                command.append(noquote('--dir="%s"="%s"' %
+                                       (os.path.join(self.mapped_dir, d['map_to']),
+                                        os.path.join(self.isolate_root, d['path']))))
+
+        for d in self.config_get(['banned_dirs']):
+            command.append(noquote('--dir="%s"=' % d))
+
 
         # meta file
         command.append(noquote('--meta="%s"' % self.meta_path), )
 
         # wall-time limit
-        command.append('--wall-time=%f' % (self.time_limit * 4))
-        command.append('--time=%f' % (self.time_limit * 1.1))
+        command.append('--wall-time=%f' % (self.time_limit * 2 / self.time_multiplier))
 
         # memory limit
         command.append('--mem=%d' % self.memory_limit)
 
         # redirections
-        command.append(noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)))
-        command.append(noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.out_filename)))
+        for s in ('stdout', 'stdin', 'stderr'):
+            if self.config_get(['redirs', s]) is not None:
+                command.append(noquote('--%s="%s"' % (s, self.config_get(['redirs', s]))))
+
+        # extra flags
+        command += self.config_get(['flags', 'run'])
 
         # the executable
-        command += ['--run', '--', os.path.join(self.mapped_dir, self.exe_filename)]
+        command += ['--run', '--', self.config_get(['run', 'cmdline'])]
+
+        #raise RuntimeError(" ".join(command))
 
         return command
+
+    def get_time(self, renv):
+        if 'time' in self.meta.keys():
+            return int(self.time_multiplier * float(self.meta['time']) * 1000)
+        elif 'time-wall' in self.meta.keys():
+            return int(self.time_multiplier * float(self.meta['time-wall']) * 1000)
+        else:
+            return None
+
+    def get_result(self, renv):
+
+        if renv['time_used'] >= self.time_limit * 1000:
+            renv['time_used'] = (self.time_limit + 0.01) * 1000
+            return ('time limit exceeded', 'TLE')
+        elif 'exitsig' in self.meta.keys():
+            return ('program exited due to signal %s' % self.meta['exitsig'], 'RE')
+        elif renv['return_code'] == 0:
+            return ('ok', 'OK')
+        elif renv['return_code'] > 128:
+            return ('program exited due to signal %d' % os.WTERMSIG(renv['return_code']), 'RE')
+        else:
+            return ('program exited with code %d' % renv['return_code'], 'RE')
+
+    def build_renv(self, command_renv):
+
+        renv = command_renv
+
+        # get the time
+        renv['time_used'] = self.get_time(renv)
+        if renv['time_used'] is None:
+            raise RuntimeError('Execution time could not be determined.\n%s\n%s\n'%(renv, self.meta))
+
+        (renv['result_string'], renv['result_code']) = self.get_result(renv)
+
+        renv['num_syscalls'] = 0
+
+        return renv
 
     def _execute(self, command, **kwargs):
 
@@ -854,37 +932,8 @@ class IsolateExecutor(UnprotectedExecutor):
 
         kwargs['stdout'].write(self.output)
 
-        isolate_meta = self.meta
+        renv = self.build_renv(renv)
 
         self.cleanup()
-
-        # get the time
-        if 'time' in isolate_meta.keys():
-            renv['time_used'] = int(float(isolate_meta['time']) * 1000)
-        elif 'time-wall' in isolate_meta.keys():
-            renv['time_used'] = int(float(isolate_meta['time-wall']) * 1000)
-        elif 'real_time_killed' in renv:
-            renv['time_used'] = renv['real_time_used']
-        else:
-            raise RuntimeError('Execution time could not be determined.')
-
-        # set result code
-        if renv['time_used'] >= self.time_limit * 1000:
-            renv['result_string'] = 'time limit exceeded'
-            renv['result_code'] = 'TLE'
-        elif 'exitsig' in isolate_meta.keys():
-            renv['result_string'] = 'program exited due to signal %s' % isolate_meta['exitsig']
-            renv['result_code'] = 'RE'
-        elif renv['return_code'] == 0:
-            renv['result_string'] = 'ok'
-            renv['result_code'] = 'OK'
-        elif renv['return_code'] > 128:
-            renv['result_string'] = 'program exited due to signal %d' % os.WTERMSIG(renv['return_code'])
-            renv['result_code'] = 'RE'
-        else:
-            renv['result_string'] = 'program exited with code %d' % renv['return_code']
-            renv['result_code'] = 'RE'
-
-        renv['num_syscalls'] = 0
 
         return renv
