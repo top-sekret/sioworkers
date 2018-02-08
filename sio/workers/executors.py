@@ -734,8 +734,6 @@ class IsolateExecutor(UnprotectedExecutor):
 
     def __enter__(self):
 
-        self.debug = []
-
         self.sandbox.__enter__()
 
         with open(os.path.join(self.sandbox.path, 'config.json')) as config_file:
@@ -744,6 +742,16 @@ class IsolateExecutor(UnprotectedExecutor):
         # get some "unique" judging id
         self.judging_id = '%08x' % random.randint(0x0000, 0xffffffff)
         self.box_id = self.get_boxid()
+
+        # init the isolate
+        retry = True
+        while retry:
+            try:
+                execute_command(['isolate', '--box-id=%d' % self.box_id] + self.config_get(['flags', 'init']) + ['--init'])
+                retry = False
+            except ExecError:
+                self.box_id = self.get_boxid()
+
         # shared directory
         self.isolate_root = '/tmp/isolate_%s' % self.judging_id
         self.mapped_dir = '/tmp/shared'
@@ -757,14 +765,6 @@ class IsolateExecutor(UnprotectedExecutor):
 
         self.time_multiplier = 1.0
 
-        retry = True
-        while retry:
-            try:
-                execute_command(['isolate', '--box-id=%d' % self.box_id] + self.config_get(['flags', 'init']) + ['--init'])
-                retry = False
-            except ExecError:
-                self.box_id = self.get_boxid()
-
         execute_command(['mkdir', self.isolate_root])
         for d in self.config_get(['dirs']):
                 execute_command(['mkdir', '-p', os.path.join(self.isolate_root, d.get('path'))])
@@ -774,7 +774,6 @@ class IsolateExecutor(UnprotectedExecutor):
                 execute_command(['cp', '-RT',
                                  os.path.join(self.sandbox.path, d.get('origin')),
                                  os.path.join(self.isolate_root, d.get('path'))])
-                self.debug.append("hello!")
 
         chmods = self.config_get(['misc', 'chmod'])
         for f in chmods.keys():
@@ -802,7 +801,7 @@ class IsolateExecutor(UnprotectedExecutor):
             try:
                 return self.config_get(field[1:], config.get(field[0], {}), origf=origf)
             except AttributeError:
-                raise RuntimeError("\n\n%s\n\n%s\n\n"%(str(config), str(origf)))
+                raise RuntimeError()
 
     def __init__(self, sandbox='isolate-sandbox'):
         self.sandbox = get_sandbox(sandbox)
@@ -838,20 +837,10 @@ class IsolateExecutor(UnprotectedExecutor):
             contents = f.read()
         return contents
 
-    def get_ic(self):
-        w = open(os.path.join(self.isolate_root, 'interface/writeable/hic_output')).read().split()
-        if len(w) < 1:
-            return None
-        else:
-            return w[0]
-
-
     @property
     def meta(self):
         res = dict()
-        hic = self.get_ic()
-        if hic is not None:
-            res['hic'] = hic;
+        res['hic'] = self._hic
         try:
             with open(self.meta_path) as mf:
                 for l in mf.read().split('\n'):
@@ -965,8 +954,10 @@ class IsolateExecutor(UnprotectedExecutor):
         ''' isolate should kill itself, killing it forcefully due to time limit makes the cpu-greedy 
         evaluated programs stay active causing a huge load increase and slowing down other submissions '''
         kwargs["real_time_limit"] = 10 * 60 * 1000
+        kwargs["capture_output"] = True
 
         renv = execute_command(self.build_command(), **kwargs)
+        self._hic = int(renv['stdout'])
 
         kwargs['stdout'].write(self.output)
 
