@@ -549,7 +549,7 @@ class Sio2JailExecutor(SandboxExecutor):
     DEFAULT_TIME_LIMIT = 30000  # (default virtual time limit in ms)
     INSTRUCTIONS_PER_VIRTUAL_SECOND = 2 * 10**9
     REAL_TIME_LIMIT_MULTIPLIER = 16
-    REAL_TIME_LIMIT_ADDEND = 1000  # (in ms)
+    REAL_TIME_LIMIT_ADDEND = 30000  # (in ms)
 
     def __init__(self):
         super(Sio2JailExecutor, self).__init__('sio2jail_exec-sandbox')
