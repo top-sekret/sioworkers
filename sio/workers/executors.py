@@ -586,6 +586,10 @@ class Sio2JailExecutor(SandboxExecutor):
             status_line = result_file.readline().strip().split()[1:]
             renv['result_string'] = result_file.readline().strip()
             result_file.close()
+            if len(status_line) < 5:
+                raise ExecError('Unrecognized Sio2Jail result string: %s'
+                                % renv['result_string'])
+
             for num, key in enumerate(('result_code', 'time_used',
                     None, 'mem_used', None)):
                 if key:
