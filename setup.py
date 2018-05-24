@@ -86,6 +86,7 @@ setup(
             'cc = sio.compilers.gcc:run_cpp_default',
             'cpp = sio.compilers.gcc:run_cpp_default',
             'g++4_8_2_cpp11 = sio.compilers.gcc:run_cpp_gcc4_8_2_cpp11',
+            'g++6_3_cpp14 = sio.compilers.gcc:run_cpp_gcc6_3_cpp14',
 
             'pas = sio.compilers.fpc:run_pas_default',
             'fpc2_6_2 = sio.compilers.fpc:run_pas_fpc2_6_2',
