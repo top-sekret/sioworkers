@@ -48,6 +48,7 @@ setup(
             'default-cpp = sio.compilers.gcc:run_default_cpp',
             'default-pas = sio.compilers.fpc:run_default',
             'default-java = sio.compilers.java:run_default',
+            'default-py = sio.compilers.python:run_python',
 
             # Sandboxed compilers:
             'c = sio.compilers.gcc:run_gcc',

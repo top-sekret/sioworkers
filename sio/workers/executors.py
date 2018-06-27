@@ -9,6 +9,7 @@ import sys
 import traceback
 from os import path
 import random
+import shutil
 import json
 
 from sio.workers import util, elf_loader_patch
@@ -161,7 +162,7 @@ def execute_command(command, env=None, split_lines=False, stdin=None,
 
 
 class BaseExecutor(object):
-    """Base class for Executors: command environment managers.
+    """Base class for Executors: ommand environment managers.
 
        Its behavior depends on class instance, see its docstring. Objects are
        callable context managers, so typical usage would be like::
@@ -718,18 +719,13 @@ class PRootExecutor(BaseExecutor):
         return self.chroot.path
 
 
-
-class IsolateExecutor(UnprotectedExecutor):
-
-    #def __exit__(self, exc_type, exc_value, traceback):
-    #self.sandbox.__exit__(exc_type, exc_value, traceback)
-    #execute_command(['isolate'] + self.config_get(['flags', 'cleanup']) + ['--cleanup'])
+class BasicIsolateExecutor(UnprotectedExecutor):
 
     def __init__(self):
-               
+
         # get some "unique" judging id
         self.judging_id = '%08x' % random.randint(0x0000, 0xffffffff)
-        
+
         # shared directory
         self.isolate_root = '/tmp/isolate_%s' % self.judging_id
         self.mapped_dir = '/tmp/shared'
@@ -741,54 +737,26 @@ class IsolateExecutor(UnprotectedExecutor):
         self.time_limit = 0
         self.memory_limit = 0
 
-        self.time_multiplier = 1.0
-
         # subdirectories and their flags
-        self.dirs = [['r', None], ['rw', 'rw'],
-                     ['/bin', '_del'], ['/dev', '_del'], ['/lib', '_del'], ['/lib64', '_del'], ['/usr', '_del']]
+        self.dirs = [['r', None], ['rw', 'rw']]
 
-        # filenames
-        self.exe_filename = 'r/exe'
-        self.in_filename = 'r/in'
-        self.out_filename = 'rw/out'
-        self._exe_path = None
+        os.mkdir(self.isolate_root)
 
-
-        execute_command(['mkdir', self.isolate_root])
+    def init_subdirectories(self):
         for d in self.dirs:
             if d[1] != '_del':
-                execute_command(['mkdir', os.path.join(self.isolate_root, d[0])])
+                os.mkdir(os.path.join(self.isolate_root, d[0]))
 
-    @property
-    def exe(self):
-        return None
-
-    @exe.setter
-    def exe(self, exe_path):
-        isolated_exe = os.path.join(self.isolate_root, self.exe_filename)
-        execute_command(['cp', exe_path, isolated_exe])
-        execute_command(['chmod', '755', isolated_exe])
-
-    @property
-    def input(self):
-        with open(os.path.join(self.isolate_root, self.in_filename), 'r') as f:
-            contents = f.read()
-        return contents
-
-    @input.setter
-    def input(self, value):
-        with open(os.path.join(self.isolate_root, self.in_filename), 'w+') as f:
-            f.write(value)
-
-    def create_out(self):
-        open(os.path.join(self.isolate_root, self.out_filename), 'a').close()
-        execute_command(['chmod', '666', os.path.join(self.isolate_root, self.out_filename)])
-
-    @property
-    def output(self):
-        with open(os.path.join(self.isolate_root, self.out_filename), 'r') as f:
-            contents = f.read()
-        return contents
+    def add_file(self, name, perm, source=None, content=None):
+        target = os.path.join(self.isolate_root, name)
+        if source is not None:
+            shutil.copy(source, target)
+        else:
+            open(target, 'a').close()
+        os.chmod(target, perm)
+        if content is not None:
+            with open(target, 'w+') as f:
+                f.write(content)
 
     @property
     def meta(self):
@@ -798,7 +766,7 @@ class IsolateExecutor(UnprotectedExecutor):
                 for l in mf.read().split('\n'):
                     spl = l.split(':')
                     if len(spl) >= 2 and spl[0].strip() not in res.keys():
-                        res[spl[0].strip()] = spl[1].strip()
+                        res[spl[0].strip()] = ':'.join(spl[1:]).strip()
         except IOError:
             pass
         return res
@@ -810,61 +778,53 @@ class IsolateExecutor(UnprotectedExecutor):
         except ExecError:
             pass
 
-    def build_command(self, extra_flags=None):
+    def flags(self):
 
-        command = ['/vol/sio2/isolate/isolate', '--box-id=auto']
+        flags = ['--box-id=auto']
 
         # directory rules
         for d in self.dirs:
             if d[1] is None:
-                command.append(noquote('--dir="%s"="%s"' %
-                                       (os.path.join(self.mapped_dir, d[0]), os.path.join(self.isolate_root, d[0]))))
+                flags.append(noquote('--dir="%s"="%s"' %
+                                     (os.path.join(self.mapped_dir, d[0]), os.path.join(self.isolate_root, d[0]))))
             elif d[1] == '_del':
-                command.append(noquote('--dir="%s"='
-                                       % os.path.join(self.mapped_dir, d[0])))
+                flags.append(noquote('--dir="%s"='
+                                     % os.path.join(self.mapped_dir, d[0])))
             else:
-                command.append(noquote('--dir="%s"="%s":%s' %
-                                       (os.path.join(self.mapped_dir, d[0]), os.path.join(self.isolate_root, d[0]), d[1])))
+                flags.append(noquote('--dir="%s"="%s":%s' %
+                                     (os.path.join(self.mapped_dir, d[0]), os.path.join(self.isolate_root, d[0]),
+                                      d[1])))
 
         # meta file
-        command.append(noquote('--meta="%s"' % self.meta_path), )
+        flags.append(noquote('--meta="%s"' % self.meta_path))
 
         # wall-time limit
-        command.append('--wall-time=%f' % (self.time_limit * 4 / self.time_multiplier))
+        flags.append('--wall-time=%f' % (self.time_limit * 4))
 
         # block time limit
-        command.append('--block=%d' % (self.time_limit*1000 / 4))
+        flags.append('--block=%d' % (self.time_limit * 1000 / 4))
 
         # instr limit
-        command.append('--instr=%d' % (self.time_limit*(2*10**9)))
+        flags.append('--instr=%d' % (self.time_limit * (2 * 10 ** 9)))
 
         # memory limit
-        command.append('--mem=%d' % self.memory_limit)
+        flags.append('--mem=%d' % self.memory_limit)
 
-        # redirections
-        command.append(noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)))
-        command.append(noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.out_filename)))
+        return flags
 
-        # the executable
-        command += ['--onetime', '--', os.path.join(self.mapped_dir, self.exe_filename)]
-        
-        return command
+    def cmdline(self):
+        raise NotImplementedError
 
     def to_secs(self, ic):
-        return float(ic)/(2*10**9)
+        return float(ic) / (2 * 10 ** 9)
 
     def get_time(self, renv):
         if 'instructions' in self.meta.keys():
             return self.to_secs(self.meta['instructions'])
         else:
-            raise RuntimeError('unable to get time. renv=%s meta=%s'%(str(renv), str(self.meta)))
+            raise RuntimeError('unable to get time. renv=%s meta=%s' % (str(renv), str(self.meta)))
 
     def get_result(self, renv):
-
-
-        #if renv['time_used'] >= self.time_limit*1000:
-        #    renv['time_used'] = (self.time_limit + 0.01) * 1000
-        #    return ('time limit exceeded', 'TLE')
         if 'status' in self.meta.keys() and self.meta['status'] == 'TO':
             return (self.meta['message'], 'TLE')
         elif 'exitsig' in self.meta.keys():
@@ -876,54 +836,154 @@ class IsolateExecutor(UnprotectedExecutor):
         elif renv['return_code'] > 128:
             return ('program exited due to signal %d' % os.WTERMSIG(renv['return_code']), 'RE')
         else:
-            #raise RuntimeError('about to throw RE (tl=%d) on %s\n'%(self.time_limit, str(renv) ))
             return ('program exited with code %d' % renv['return_code'], 'RE')
 
     def build_renv(self, command_renv):
 
         renv = command_renv
 
-        # get the time
-        renv['time_used'] = self.get_time(renv)*1000
+        renv['time_used'] = self.get_time(renv) * 1000
         if renv['time_used'] is None:
-            raise RuntimeError('Execution time could not be determined.\n%s\n%s\n'%(renv, self.meta))
+            raise RuntimeError('Execution time could not be determined.\n%s\n%s\n' % (renv, self.meta))
 
         (renv['result_string'], renv['result_code']) = self.get_result(renv)
 
         renv['num_syscalls'] = 0
         renv['isolate_meta'] = str(self.meta)
-        #raise RuntimeError(renv['isolate_meta'])
 
         return renv
 
     def _execute(self, command, **kwargs):
 
-        self.exe = command[0]
-        self.input = kwargs['stdin'].read()
-        self.create_out()
-
         if kwargs['time_limit'] is not None:
-            self.time_limit = kwargs['time_limit']/1000.0
+            self.time_limit = kwargs['time_limit'] / 1000.0
         if kwargs['mem_limit'] is not None:
             self.memory_limit = kwargs['mem_limit']
 
-        ''' isolate should kill itself, killing it forcefully due to time limit makes the cpu-greedy 
-        evaluated programs stay active causing a huge load increase and slowing down other submissions '''
         kwargs["real_time_limit"] = 10 * 60 * 1000
         kwargs["capture_output"] = True
 
-        command = self.build_command()
-        renv = execute_command(self.build_command(), **kwargs)
-        
-        #try:
-        #    self._hic = int(renv['stdout'])
-        #except ValueError:
-        #    self._hic = 2*10**12
+        command = ['/vol/sio2/isolate/isolate'] + \
+                  self.flags() + \
+                  ['--onetime', '--'] + \
+                  self.cmdline()
 
-        kwargs['stdout'].write(self.output)
+        #raise RuntimeError(' '.join(command))
 
+        renv = execute_command(command, **kwargs)
+
+        return renv
+
+
+class IsolateExecutor(BasicIsolateExecutor):
+
+    def __init__(self):
+        super(IsolateExecutor, self).__init__()
+        self.dirs += [['/bin', '_del'], ['/dev', '_del'], ['/lib', '_del'], ['/lib64', '_del'], ['/usr', '_del']]
+
+        self.exe_filename = 'r/exe'
+        self.in_filename = 'r/in'
+        self.out_filename = 'rw/out'
+        self.exe_path = None
+
+        self.init_subdirectories()
+
+    def flags(self):
+        return super(IsolateExecutor, self).flags() + [
+            noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)),
+            noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.out_filename)),
+        ]
+
+    def cmdline(self):
+        return [os.path.join(self.mapped_dir, self.exe_filename)]
+
+    def _execute(self, command, **kwargs):
+        self.add_file(self.exe_filename, 0o755, command[0], None)
+        self.add_file(self.in_filename, 0o744, None, kwargs['stdin'].read())
+        self.add_file(self.out_filename, 0o766, None, None)
+
+        renv = super(IsolateExecutor, self)._execute(command, **kwargs)
+        kwargs['stdout'].write(open(os.path.join(self.isolate_root, self.out_filename), 'r').read())
         renv = self.build_renv(renv)
-
+        renv['return_code'] = self.meta.get('exitcode', 0)
         self.cleanup()
+        return renv
 
+class TerrariumExecutor(BasicIsolateExecutor):
+
+    def __init__(self):
+        super(TerrariumExecutor, self).__init__()
+        self.sandbox = get_sandbox('terrarium-sandbox')
+        self.dirs += [['/dev', '_del']]
+
+        self.err_filename = 'rw/err'
+
+        self.init_subdirectories()
+        
+        os.chmod(os.path.join(self.isolate_root, 'rw'), 0o777)
+
+    def flags(self):
+        return super(TerrariumExecutor, self).flags() + [
+            noquote('--stderr-to-stdout'),
+            noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
+            noquote('--dir="%s"="%s"' % ('/python3', self.sandbox.path)),
+            noquote('--dir="%s"="%s":rw' % ('/source', os.path.dirname(self.src_path)))
+        ]
+
+    def cmdline(self):
+        return ['/python3/python', '/python3/python3compile.py', os.path.join('/source', os.path.basename(self.src_path))]
+
+    def _execute(self, command, **kwargs):
+        self.add_file(self.err_filename, 0o766, None, None)
+        self.src_path = command[0]
+        
+        renv = super(TerrariumExecutor, self)._execute([], **kwargs)
+        renv = self.build_renv(renv)
+        messages = open(os.path.join(self.isolate_root, self.err_filename), 'r').read()
+        renv['return_code'] = int(self.meta.get('exitcode', 0))
+        if len(messages) != 0:
+            renv['return_code'] = 1
+            renv['stdout'] = messages
+        self.cleanup()
+        return renv
+
+class Terrarium2Executor(BasicIsolateExecutor):
+
+    def __init__(self):
+        super(Terrarium2Executor, self).__init__()
+        self.sandbox = get_sandbox('terrarium-sandbox')
+        self.dirs += [['/dev', '_del']]
+
+        self.err_filename = 'rw/err'
+        self.exe_filename = 'rw/a.pyc'
+        self.in_filename = 'r/in'
+        self.out_filename = 'rw/out'
+        
+        self.init_subdirectories()
+
+    def flags(self):
+        return super(Terrarium2Executor, self).flags() + [
+            noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.out_filename)),
+            noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)),
+            noquote('--stderr="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
+            noquote('--dir="%s"="%s"' % ('/python3', self.sandbox.path))
+        ]
+
+    def cmdline(self):
+        return ['/python3/python', os.path.join(self.mapped_dir, self.exe_filename)]
+
+    def _execute(self, command, **kwargs):
+    
+        self.add_file(self.err_filename, 0o766, None, None)
+        self.add_file(self.exe_filename, 0o744, command[0], None)
+        self.add_file(self.in_filename, 0o744, None, kwargs['stdin'].read())
+        self.add_file(self.out_filename, 0o766, None, None)
+        
+        renv = super(Terrarium2Executor, self)._execute([], **kwargs)
+        renv = self.build_renv(renv)
+        messages = open(os.path.join(self.isolate_root, self.err_filename), 'r').read()
+        renv['return_code'] = int(self.meta.get('exitcode', 0))
+        kwargs['stdout'].write(open(os.path.join(self.isolate_root, self.out_filename), 'r').read())
+        renv['stderr'] = open(os.path.join(self.isolate_root, self.err_filename), 'r').read()
+        self.cleanup()
         return renv

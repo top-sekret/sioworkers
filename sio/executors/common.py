@@ -11,7 +11,7 @@ def _populate_environ(renv, environ):
     """Takes interesting fields from renv into environ"""
     for key in ('time_used', 'mem_used', 'num_syscalls'):
         environ[key] = renv.get(key, 0)
-    for key in ('result_code', 'result_string'):
+    for key in ('result_code', 'result_string', 'isolate_meta'):
         environ[key] = renv.get(key, '')
 
 def run(environ, executor, use_sandboxes=True):
@@ -25,6 +25,7 @@ def run(environ, executor, use_sandboxes=True):
     :param: use_sandboxes Enables safe checking output correctness.
                        See `sio.executors.checkers`. True by default.
     """
+
     input_name = tempcwd('in')
 
     file_executor = get_file_runner(executor, environ)

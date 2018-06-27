@@ -4,7 +4,7 @@ import logging
 from zipfile import ZipFile
 
 from sio.workers import ft
-from sio.workers.executors import UnprotectedExecutor, PRootExecutor
+from sio.workers.executors import UnprotectedExecutor, PRootExecutor, TerrariumExecutor
 from sio.workers.util import replace_invalid_UTF, tempcwd
 
 logger = logging.getLogger(__name__)
@@ -61,6 +61,8 @@ class Compiler(object):
 
         if self.sandbox is None:
             self.executor = UnprotectedExecutor()
+        elif self.lang == 'py':
+            self.executor = TerrariumExecutor()
         else:
             self.executor = PRootExecutor('compiler-' + self.sandbox)
 
@@ -126,7 +128,6 @@ class Compiler(object):
 
     def _run_in_executor(self, executor):
         cmdline = self._make_cmdline(executor)
-
         return self._execute(executor, cmdline)
 
     def _execute(self, executor, cmdline, **kwargs):
@@ -156,5 +157,4 @@ class Compiler(object):
             self.environ['result_code'] = 'OK'
             self.environ['exec_info'] = {'mode': 'executable'}
             ft.upload(self.environ, 'out_file', tempcwd(self.output_file))
-
         return self.environ

@@ -13,7 +13,6 @@ class CPPCompiler(CStyleCompiler):
     compiler = 'g++'
     options = ['-std=c++11', '-static', '-O2', '-s', '-lm']
 
-
 def run_gcc(environ):
     return CCompiler().compile(environ)
 

@@ -29,6 +29,8 @@ def _run_diff(env):
     return renv['return_code'] and ['WA'] or ['OK']
 
 def _run_checker(env, use_sandboxes=False):
+
+    # same for testlib and sinol checkers
     command = ['./chk', 'in', 'out', 'hint']
 
     def execute_checker(with_stderr=False):
@@ -40,15 +42,31 @@ def _run_checker(env, use_sandboxes=False):
             return _run_in_executor(env, command, UnprotectedExecutor(),
                     ignore_errors=True, forward_stderr=with_stderr)
 
-    renv = execute_checker()
-    if renv['return_code'] >= 2:
-        renv = execute_checker(with_stderr=True)
-        raise CheckerError(
-                'Checker returned code(%d) >= 2. Checker stdout and stderr: ' \
-                '"%s". Checker environ dump: %s' \
-                        % (renv['return_code'], renv['stdout'], env))
 
-    return renv['stdout']
+    is_testlib = (env.get('checker_mode')=='testlib')
+    renv = execute_checker(with_stderr=True)
+
+    if is_testlib:
+        #raise RuntimeError("\ntestlib checker!\nenviron:\n%s\n"%str(env))
+        output = []
+        if renv.get('return_code') == 0: output += ['OK']
+        else:
+            output += ['WRONG\n']
+            #raise RuntimeError('throwing WA with renv=%s\n'%str(renv))
+        output += ['\n'.join(renv.get('stdout'))]
+        output += ['100']
+
+        #output = ['WRONG', 'hedgehog\nhunting\nis illegal!!!1!11!', '100']
+        #raise RuntimeError("testlib returns: [%s]\n\n"%output)
+        return output
+    else:
+        if renv['return_code'] >= 2:
+            renv = execute_checker(with_stderr=True)
+            raise CheckerError(
+                    'Checker returned code(%d) >= 2. Checker stdout and stderr: ' \
+                    '"%s". Checker environ dump: %s' \
+                            % (renv['return_code'], renv['stdout'], env))
+        return renv['stdout']
 
 def _run_compare(env):
     e = SandboxExecutor('exec-sandbox')
@@ -63,6 +81,7 @@ def _limit_length(s):
     return s
 
 def run(environ, use_sandboxes=True):
+
     ft.download(environ, 'out_file', 'out', skip_if_exists=True)
     ft.download(environ, 'hint_file', 'hint', add_to_cache=True)
 

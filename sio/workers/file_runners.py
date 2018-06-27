@@ -1,6 +1,6 @@
 from sio.workers.executors import UnprotectedExecutor, \
     DetailedUnprotectedExecutor, VCPUExecutor, SupervisedExecutor, \
-    PRootExecutor, IsolateExecutor
+    PRootExecutor, IsolateExecutor, Terrarium2Executor
 from sio.workers.util import RegisteredSubclassesBase
 import os.path
 
@@ -95,6 +95,18 @@ class Executable(LanguageModeWrapper):
     def preferred_filename(self):
         return 'exe'
 
+class Python(LanguageModeWrapper):
+    handled_exec_mode = 'python3'
+    handled_executors = [Terrarium2Executor]
+    def __call__(self, file, args, **kwargs):
+        if os.path.isabs(file):
+            cmd = file
+        else:
+            cmd = './%s' % file
+        return self.executor([cmd] + args, **kwargs)
+
+    def preferred_filename(self):
+        return 'exe.pyc'
 
 class _BaseJava(LanguageModeWrapper):
     handled_exec_mode = 'java'
