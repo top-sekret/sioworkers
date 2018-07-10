@@ -728,7 +728,7 @@ class BasicIsolateExecutor(UnprotectedExecutor):
 
         # shared directory
         self.isolate_root = '/tmp/isolate_%s' % self.judging_id
-        self.mapped_dir = '/tmp/shared'
+        self.mapped_dir = '/mounted'
 
         # meta file
         self.meta_path = '/tmp/isolate_meta_%s' % self.judging_id
@@ -909,6 +909,11 @@ class IsolateExecutor(BasicIsolateExecutor):
         self.cleanup()
         return renv
 
+def limit_stderr(limit, data):
+    if len(data) > limit:
+        data = data[-limit:]
+    return data
+
 class TerrariumExecutor(BasicIsolateExecutor):
 
     def __init__(self):
@@ -943,7 +948,7 @@ class TerrariumExecutor(BasicIsolateExecutor):
         renv['return_code'] = int(self.meta.get('exitcode', 0))
         if len(messages) != 0:
             renv['return_code'] = 1
-            renv['stdout'] = messages
+            renv['stdout'] = limit_stderr(1024*8, messages)
         self.cleanup()
         return renv
 
@@ -984,6 +989,6 @@ class Terrarium2Executor(BasicIsolateExecutor):
         messages = open(os.path.join(self.isolate_root, self.err_filename), 'r').read()
         renv['return_code'] = int(self.meta.get('exitcode', 0))
         kwargs['stdout'].write(open(os.path.join(self.isolate_root, self.out_filename), 'r').read())
-        renv['stderr'] = open(os.path.join(self.isolate_root, self.err_filename), 'r').read()
+        renv['stderr'] = limit_stderr(1024, open(os.path.join(self.isolate_root, self.err_filename), 'r').read())
         self.cleanup()
         return renv

@@ -11,7 +11,7 @@ def _populate_environ(renv, environ):
     """Takes interesting fields from renv into environ"""
     for key in ('time_used', 'mem_used', 'num_syscalls'):
         environ[key] = renv.get(key, 0)
-    for key in ('result_code', 'result_string', 'isolate_meta'):
+    for key in ('result_code', 'result_string', 'isolate_meta', 'stderr'):
         environ[key] = renv.get(key, '')
 
 def run(environ, executor, use_sandboxes=True):
