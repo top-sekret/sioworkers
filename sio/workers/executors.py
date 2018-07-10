@@ -799,7 +799,7 @@ class BasicIsolateExecutor(UnprotectedExecutor):
         flags.append(noquote('--meta="%s"' % self.meta_path))
 
         # wall-time limit
-        flags.append('--wall-time=%f' % (self.time_limit * 4))
+        flags.append('--wall-time=%f' % (self.time_limit * 20))
 
         # block time limit
         flags.append('--block=%d' % (self.time_limit * 1000 / 4))
