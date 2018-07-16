@@ -42,6 +42,22 @@ def _run(environ, executor, use_sandboxes):
     os.chmod(tempcwd(exe_filename), 0o700)
     ft.download(environ, 'in_file', input_name, add_to_cache=True)
 
+    # HAIL copy-paste
+    tmp_environ = environ.copy()
+
+    extra_execution_files = environ.get('extra_execution_files', {})
+    if isinstance(extra_execution_files, dict):
+        lang = environ.get('language')
+        extra_execution_files = extra_execution_files.get(lang, [])
+    else if isinstance(extra_execution_files, six.string_types):
+        extra_execution_files = (extra_execution_files,)
+
+    for execution_file in extra_execution_files:
+        tmp_environ['extra_execution_file'] = execution_file
+        ft.download(tmp_environ, 'extra_execution_file',
+                    os.path.basename(execution_file),
+                    add_to_cache=True)
+
     zipdir = tempcwd('in_dir')
     os.mkdir(zipdir)
     try:
