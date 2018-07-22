@@ -45,17 +45,10 @@ def _run(environ, executor, use_sandboxes):
     # HAIL copy-paste
     tmp_environ = environ.copy()
 
-    extra_execution_files = environ.get('extra_execution_files', {})
-    if isinstance(extra_execution_files, dict):
-        lang = environ.get('language')
-        extra_execution_files = extra_execution_files.get(lang, [])
-    else if isinstance(extra_execution_files, six.string_types):
-        extra_execution_files = (extra_execution_files,)
-
-    for execution_file in extra_execution_files:
-        tmp_environ['extra_execution_file'] = execution_file
+    for file_name, file_path in environ.get('extra_execution_files', {}).iteritems():
+        tmp_environ['extra_execution_file'] = file_path
         ft.download(tmp_environ, 'extra_execution_file',
-                    os.path.basename(execution_file),
+                    dest=file_name,
                     add_to_cache=True)
 
     zipdir = tempcwd('in_dir')
