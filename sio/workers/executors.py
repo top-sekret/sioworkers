@@ -868,7 +868,6 @@ class BasicIsolateExecutor(UnprotectedExecutor):
                   ['--onetime', '--'] + \
                   self.cmdline()
 
-        #raise RuntimeError(' '.join(command))
 
         renv = execute_command(command, **kwargs)
 
@@ -892,6 +891,7 @@ class IsolateExecutor(BasicIsolateExecutor):
         return super(IsolateExecutor, self).flags() + [
             noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)),
             noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.out_filename)),
+            '--seccomp'
         ]
 
     def cmdline(self):
@@ -932,7 +932,7 @@ class TerrariumExecutor(BasicIsolateExecutor):
             noquote('--stderr-to-stdout'),
             noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
             noquote('--dir="%s"="%s"' % ('/python3', self.sandbox.path)),
-            noquote('--dir="%s"="%s":rw' % ('/source', os.path.dirname(self.src_path)))
+            noquote('--dir="%s"="%s":rw' % ('/source', os.path.dirname(self.src_path))),
         ]
 
     def cmdline(self):
@@ -971,7 +971,8 @@ class Terrarium2Executor(BasicIsolateExecutor):
             noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.out_filename)),
             noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)),
             noquote('--stderr="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
-            noquote('--dir="%s"="%s"' % ('/python3', self.sandbox.path))
+            noquote('--dir="%s"="%s"' % ('/python3', self.sandbox.path)),
+            '--seccomp',
         ]
 
     def cmdline(self):
