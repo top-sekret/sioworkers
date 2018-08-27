@@ -327,7 +327,7 @@ def test_untrusted_checkers(checker, callback, sandboxed, exception):
             upload_files()
             checker_bin = compile(checker, '/chk.e')['out_file']
         with TemporaryCwd():
-            executor = SupervisedExecutor(use_program_return_code=True) if \
+            executor = SupervisedExecutor() if \
                     sandboxed else DetailedUnprotectedExecutor()
             renv = compile_and_run('/add_print.c', {
                     'in_file': '/input',
