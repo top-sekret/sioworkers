@@ -124,6 +124,8 @@ class Sandbox(object):
 
     required_fixups = set(('elf_loader_patch',))
 
+    basedir = SANDBOXES_BASEDIR
+
     @classmethod
     def _instance(cls, name):
         """This function is used by get_sandbox to get Sandbox instance."""
@@ -135,8 +137,8 @@ class Sandbox(object):
     def __init__(self, name):
         self.name = name
 
-        self.path = os.path.join(SANDBOXES_BASEDIR, name)
-        mkdir(SANDBOXES_BASEDIR)
+        self.path = os.path.join(self.basedir, name)
+        mkdir(self.basedir)
 
         self._in_context = 0
 
@@ -318,7 +320,7 @@ class Sandbox(object):
             logger.info(" extracting ...")
 
             tar = tarfile.open(archive_path, 'r')
-            tar.extractall(SANDBOXES_BASEDIR)
+            tar.extractall(self.basedir)
             os.unlink(archive_path)
 
             if not os.path.isdir(path):
@@ -339,7 +341,16 @@ class Sandbox(object):
 
         self.lock.lock_shared()
 
-def get_sandbox(name):
+class PristineSandbox(Sandbox):
+    required_fixups = ()
+    basedir = os.path.join(SANDBOXES_BASEDIR, 'no-fixup')
+
+    # We need a separate dictionary for caching our instances,
+    # as they're not equivalent to non-pristine Sandbox instances
+    # with the same name.
+    _instances = weakref.WeakValueDictionary()
+
+def get_sandbox(name, flavor=None):
     """Constructs a :class:`Sandbox` with the given ``name``.
 
     If a :class:`Sandbox` instance for the given ``name`` is already
@@ -348,6 +359,10 @@ def get_sandbox(name):
     Only this function should be used to creating or getting
     :class:`Sandbox` instances.
     """
+
+    if flavor == 'pristine':
+        return PristineSandbox._instance(name)
+
     return Sandbox._instance(name)
 
 class NullSandbox(object):
@@ -369,5 +384,8 @@ class NullSandbox(object):
 
 if __name__ == '__main__':
     import sys
-    with get_sandbox(sys.argv[1]) as sandbox:
+    flavor = None
+    if len(sys.argv) > 2:
+        flavor = sys.argv[2]
+    with get_sandbox(sys.argv[1], flavor=flavor) as sandbox:
         print(sandbox.path)
