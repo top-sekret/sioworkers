@@ -10,7 +10,7 @@ try:
 except (ImportError, AttributeError):
     import simplejson as json
 
-from sio.workers.util import first_entry_point
+from sio.workers.util import first_entry_point, threadlocal_dir
 
 
 def run(environ):
@@ -36,6 +36,9 @@ def main():
               % sys.argv[0].split('/')[-1])
         raise SystemExit(1)
 
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+
     # Simulate compile.sh from sio1
     environ = {
             'source_file': sys.argv[1],
@@ -48,6 +51,9 @@ def main():
         if '-' not in compiler:
             compiler = 'default-' + compiler
         environ['compiler'] = compiler
+
+    # FIXME: this is an ugly hack to set tempcwd to current cwd
+    threadlocal_dir.tmpdir = os.getcwd()
 
     run(environ)
     print(json.dumps(environ))
