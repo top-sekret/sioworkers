@@ -24,11 +24,11 @@ def _run_in_executor(environ, command, executor, **kwargs):
                 environ=environ, environ_prefix='inwer_', **kwargs)
 
 def _run_inwer(environ, use_sandboxes=False):
-    command = [tempcwd('inwer')]
     if use_sandboxes:
         executor = SupervisedExecutor()
     else:
         executor = DetailedUnprotectedExecutor()
+    command = [executor.rcwd('inwer')]
     return _run_in_executor(environ, command, executor, ignore_errors=True)
 
 def run(environ):
