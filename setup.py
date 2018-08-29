@@ -78,6 +78,7 @@ setup(
             'default-cpp = sio.compilers.gcc:run_cpp_default',
             'default-pas = sio.compilers.fpc:run_pas_default',
             'default-java = sio.compilers.java:run_java_default',
+            'default-py = sio.compilers.python:run_python_default',
 
             # Sandboxed compilers:
             'c = sio.compilers.gcc:run_c_default',
@@ -93,6 +94,9 @@ setup(
 
             'java = sio.compilers.java:run_java_default',
             'java1_8 = sio.compilers.java:run_java1_8',
+
+            'python_3_4_numpy = sio.compilers.python:run_python3_4_numpy',
+            'py = sio.compilers.python:run_python_default',
 
             # Non-sandboxed compilers
             'system-c = sio.compilers.system_gcc:run_gcc',

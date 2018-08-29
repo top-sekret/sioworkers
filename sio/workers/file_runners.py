@@ -2,7 +2,8 @@ from __future__ import absolute_import
 from sio.workers.executors import UnprotectedExecutor, \
     DetailedUnprotectedExecutor, VCPUExecutor, Sio2JailExecutor, \
     SupervisedExecutor, PRootExecutor
-from sio.workers.util import RegisteredSubclassesBase
+from sio.workers.util import RegisteredSubclassesBase, mkdir, tempcwd
+import tarfile
 import os.path
 
 
@@ -96,6 +97,40 @@ class Executable(LanguageModeWrapper):
 
     def preferred_filename(self):
         return 'exe'
+
+
+class Python3(LanguageModeWrapper):
+    """Wraps a Python3 .pyz archive and takes care of running it."""
+
+    handled_exec_mode = 'python3'
+    handled_executors = Sio2JailExecutor,
+
+    def __init__(self, executor, environ):
+        executor = Sio2JailExecutor('compiler-python3.4.2-numpy_i386')
+
+        super(Python3, self).__init__(executor, environ)
+        self.exec_info = environ['exec_info']
+
+    def __call__(self, file, args, **kwargs):
+        python = ['/usr/bin/python3.4']
+
+        prog_dir = tempcwd('prog')
+        inner_dir = '/tmp'
+        main_file =  self.exec_info.get('main_file', '__main__.py')
+        inner_file = os.path.join(inner_dir, main_file)
+        mkdir(prog_dir)
+
+        with tarfile.open(file) as tf:
+            tf.extractall(prog_dir)
+
+        kwargs['no_bind_binary'] = True
+        kwargs['binds'] = [('/dev/zero', '/dev/urandom', 'ro,dev'),
+                           (prog_dir, inner_dir, 'ro')]
+
+        return self.executor(python + [inner_file] + args, **kwargs)
+
+    def preferred_filename(self):
+        return self.exec_info.get('preferred_filename', 'a.tar')
 
 
 class _BaseJava(LanguageModeWrapper):
