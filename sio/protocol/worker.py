@@ -36,7 +36,7 @@ class WorkerProtocol(rpc.WorkerRPC):
             raise RuntimeError(
                     'Send job to worker already running cpu-exec job')
         task_id = env['task_id']
-        log.info('running {job_type} {tid}', job_type=job_type, tid=task_id)
+        log.info('running {job_type} {tid} {envi}', job_type=job_type, tid=task_id, envi=env)
         self.running[task_id] = env
         d = threads.deferToThread(_runner_wrap, env)
 

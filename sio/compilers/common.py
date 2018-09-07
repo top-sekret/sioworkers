@@ -6,6 +6,7 @@ from zipfile import ZipFile
 from sio.workers import ft
 from sio.workers.executors import UnprotectedExecutor, PRootExecutor, TerrariumExecutor
 from sio.workers.util import replace_invalid_UTF, tempcwd
+from sio.feedback import compilation_started, compilation_finished
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,7 @@ class Compiler(object):
                     see the global documentation for `sio.compilers`.
         """
         self.environ = environ
+        compilation_started(environ)
         # using a copy of the environment in order to avoid polluting it with
         # temoporary elements
         self.tmp_environ = environ.copy()
@@ -89,7 +91,9 @@ class Compiler(object):
         with self.executor as executor:
             renv = self._run_in_executor(executor)
 
-        return self._postprocess(renv)
+        result = self._postprocess(renv)
+        compilation_finished(result)
+        return result
 
     def _make_filename(self):
         return 'a.' + self.lang

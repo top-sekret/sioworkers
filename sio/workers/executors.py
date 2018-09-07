@@ -724,7 +724,9 @@ class BasicIsolateExecutor(UnprotectedExecutor):
     def __init__(self):
 
         # get some "unique" judging id
-        self.judging_id = '%08x' % random.randint(0x0000, 0xffffffff)
+        self.judging_id = ''
+        for i in range(5):
+            self.judging_id += ('%08x' % random.randint(0x0000, 0xffffffff))
 
         # shared directory
         self.isolate_root = '/tmp/isolate_%s' % self.judging_id
@@ -772,7 +774,7 @@ class BasicIsolateExecutor(UnprotectedExecutor):
         return res
 
     def cleanup(self):
-        execute_command(['rm', '-R', self.isolate_root])
+        execute_command(['rm', '-R', noquote(self.isolate_root)])
         try:
             execute_command(['rm', self.meta_path])
         except ExecError:
@@ -802,7 +804,7 @@ class BasicIsolateExecutor(UnprotectedExecutor):
         flags.append('--wall-time=%f' % (self.time_limit * 20))
 
         # block time limit
-        flags.append('--block=%d' % (self.time_limit * 1000 / 4))
+        flags.append('--block=%d' % (2000) )
 
         # instr limit
         flags.append('--instr=%d' % (self.time_limit * (2 * 10 ** 9)))
@@ -810,7 +812,10 @@ class BasicIsolateExecutor(UnprotectedExecutor):
         # memory limit
         flags.append('--mem=%d' % self.memory_limit)
 
-        return flags
+        # fsize limit
+	flags.append('--fsize=%d' % (1024*20))
+
+	return flags
 
     def cmdline(self):
         raise NotImplementedError
@@ -869,6 +874,7 @@ class BasicIsolateExecutor(UnprotectedExecutor):
                   self.cmdline()
 
 
+	#raise RuntimeError(' '.join(command))
         renv = execute_command(command, **kwargs)
 
         return renv
@@ -880,6 +886,7 @@ class IsolateExecutor(BasicIsolateExecutor):
         super(IsolateExecutor, self).__init__()
         self.dirs += [['/bin', '_del'], ['/dev', '_del'], ['/lib', '_del'], ['/lib64', '_del'], ['/usr', '_del']]
 
+        self.err_filename = 'rw/err'
         self.exe_filename = 'r/exe'
         self.in_filename = 'r/in'
         self.out_filename = 'rw/out'
@@ -891,6 +898,7 @@ class IsolateExecutor(BasicIsolateExecutor):
         return super(IsolateExecutor, self).flags() + [
             noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)),
             noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.out_filename)),
+            noquote('--stderr="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
             '--seccomp'
         ]
 
@@ -901,11 +909,13 @@ class IsolateExecutor(BasicIsolateExecutor):
         self.add_file(self.exe_filename, 0o755, command[0], None)
         self.add_file(self.in_filename, 0o744, None, kwargs['stdin'].read())
         self.add_file(self.out_filename, 0o766, None, None)
+        self.add_file(self.err_filename, 0o766, None, None)
 
         renv = super(IsolateExecutor, self)._execute(command, **kwargs)
         kwargs['stdout'].write(open(os.path.join(self.isolate_root, self.out_filename), 'r').read())
         renv = self.build_renv(renv)
         renv['return_code'] = self.meta.get('exitcode', 0)
+        renv['stderr'] = limit_stderr(1024*256, open(os.path.join(self.isolate_root, self.err_filename), 'r').read())
         self.cleanup()
         return renv
 
@@ -926,6 +936,10 @@ class TerrariumExecutor(BasicIsolateExecutor):
         self.init_subdirectories()
         
         os.chmod(os.path.join(self.isolate_root, 'rw'), 0o777)
+
+    def __enter__(self):
+        self.sandbox.__enter__()
+        return self
 
     def flags(self):
         return super(TerrariumExecutor, self).flags() + [
@@ -965,6 +979,10 @@ class Terrarium2Executor(BasicIsolateExecutor):
         self.out_filename = 'rw/out'
         
         self.init_subdirectories()
+
+    def __enter__(self):
+        self.sandbox.__enter__()
+        return self
 
     def flags(self):
         return super(Terrarium2Executor, self).flags() + [

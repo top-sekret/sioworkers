@@ -6,6 +6,7 @@ from sio.workers.util import replace_invalid_UTF, tempcwd
 from sio.workers.file_runners import get_file_runner
 
 from sio.executors import checker
+from sio import feedback
 
 def _populate_environ(renv, environ):
     """Takes interesting fields from renv into environ"""
@@ -25,6 +26,16 @@ def run(environ, executor, use_sandboxes=True):
     :param: use_sandboxes Enables safe checking output correctness.
                        See `sio.executors.checkers`. True by default.
     """
+
+    if feedback.judge_prepare(environ).force_not_judge:
+        environ['time_used'] = 0
+        environ['result_string'] = 'not judged'
+        environ['result_code'] = 'NJ'
+        environ['mem_used'] = 0
+        environ['num_syscalls'] = 0
+        environ['stderr'] = ''
+        return environ
+
 
     input_name = tempcwd('in')
 
@@ -54,7 +65,8 @@ def run(environ, executor, use_sandboxes=True):
         with file_executor as fe:
             with open(input_name, 'rb') as inf:
                 with open(tempcwd('out'), 'wb') as outf:
-                    renv = fe(tempcwd(exe_filename), [],
+                   feedback.judge_started(environ)
+                   renv = fe(tempcwd(exe_filename), [],
                               stdin=inf, stdout=outf, ignore_errors=True,
                               environ=environ, environ_prefix='exec_')
 
@@ -65,6 +77,7 @@ def run(environ, executor, use_sandboxes=True):
 
         for key in ('result_code', 'result_string'):
             environ[key] = replace_invalid_UTF(environ[key])
+        feedback.judge_finished(environ)
 
         if 'out_file' in environ:
             ft.upload(environ, 'out_file', tempcwd('out'),
