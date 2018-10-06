@@ -9,7 +9,7 @@ class CCompiler(CStyleCompiler):
     def gcc_4_8_2_c99(cls):
         obj = cls()
         obj.sandbox = 'gcc.4_8_2'
-        obj.options = ['-std=gnu99', '-static', '-O2', '-s', '-lm']
+        obj.options = ['-std=gnu99', '-static', '-O3', '-s', '-lm']
         return obj
 
 
@@ -20,14 +20,14 @@ class CPPCompiler(CStyleCompiler):
     def gcc_4_8_2_cpp11(cls):
         obj = cls('gcc.4_8_2')
         obj.compiler = 'g++'
-        obj.options = ['-std=c++11', '-static', '-O2', '-s', '-lm']
+        obj.options = ['-std=c++11', '-static', '-O3', '-s']
         return obj
 
     @classmethod
     def gcc_6_3_cpp14(cls):
         obj = cls('gcc.6_3')
         obj.compiler = 'g++'
-        obj.options = ['-std=c++14', '-static', '-O2', '-s', '-lm']
+        obj.options = ['-std=c++14', '-static', '-O3', '-s']
         return obj
 
 
