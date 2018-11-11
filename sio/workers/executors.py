@@ -678,8 +678,9 @@ class Sio2JailExecutor(CompoundSandboxExecutor, _SIOSupervisedExecutor):
             # Limiting outside supervisor
             kwargs['real_time_limit'] = 2 * kwargs['real_time_limit']
 
+        # sio2jail defaults to KB, so append 'b' explicitly
         options += ['--output-limit',
-            str(kwargs['output_limit'])]
+            str(kwargs['output_limit']) + 'b']
         command = [os.path.join(self.tool.rpath, 'sio2jail')] + \
                     options + ['--'] + command
 
