@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+service FeedbackService {
+        rpc CompilationStarted (CompilationStart) returns (Empty);
+        rpc CompilationFinished (CompilationResult) returns (Empty);
+        rpc JudgePrepare (JudgeStart) returns (JudgePrepareResponse);
+        rpc JudgeStarted (JudgeStart) returns (Empty);
+        rpc JudgeFinished (JudgeFinish) returns (Empty);
+}
+
+message Empty {}
+
+message CompilationStart {
+        int64 judging_id = 1;
+}
+
+message CompilationResult {
+        int64 judging_id = 1;
+        string compilation_code = 3;
+        string compilation_output = 4;
+};
+
+message JudgeStart {
+        int64 judging_id = 1;
+        string test_name = 2;
+};
+
+message JudgePrepareResponse {
+        bool force_not_judge = 1;
+};
+
+message JudgeFinish {
+        int64 judging_id = 1;
+        string test_name = 2;
+        string status_code = 3;
+};
+
