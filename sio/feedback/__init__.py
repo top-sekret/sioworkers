@@ -1,6 +1,7 @@
 import xmlrpclib
+import os
 
-CONNECT_TO='http://10.14.70.11:7899'
+CONNECT_TO='http://'+os.environ['SIOWORKERSD_HOST']+':7899'
 
 def with_connection(fn):
     def wrapped(*args, **kwargs):
