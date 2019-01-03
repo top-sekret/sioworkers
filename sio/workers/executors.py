@@ -832,6 +832,8 @@ class BasicIsolateExecutor(UnprotectedExecutor):
     def get_result(self, renv):
         if 'status' in self.meta.keys() and self.meta['status'] == 'TO':
             return (self.meta['message'], 'TLE')
+        elif 'status' in self.meta.keys() and self.meta['status'] == 'ME':
+            return (self.meta['message'], 'MLE')
         elif 'exitsig' in self.meta.keys():
             return ('program exited due to signal %s' % self.meta['exitsig'], 'RE')
         elif 'status' in self.meta.keys() and self.meta['status'] == 'RE':
