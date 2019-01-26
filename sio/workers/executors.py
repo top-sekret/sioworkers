@@ -922,6 +922,7 @@ class IsolateExecutor(BasicIsolateExecutor):
         return renv
 
 def limit_stderr(limit, data):
+    data = "".join([d if ord(d)<0x80 and ord(d)>0x00 else '?' for d in data])
     if len(data) > limit:
         data = data[-limit:]
     return data
