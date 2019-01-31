@@ -1,5 +1,6 @@
 import xmlrpclib
 import os
+import time
 
 CONNECT_TO='http://'+os.environ['SIOWORKERSD_HOST']+':7899'
 
@@ -7,10 +8,12 @@ def with_connection(fn):
     def wrapped(*args, **kwargs):
         server = xmlrpclib.ServerProxy(CONNECT_TO, allow_none=True)
 
-        try:
-            return fn(server, *args, **kwargs)
-        except Exception:
-            raise
+        for i in range(3):
+            try:
+                return fn(server, *args, **kwargs)
+            except Exception:
+                if i == 2: raise
+                time.sleep(0.5)
 
     return wrapped
 
