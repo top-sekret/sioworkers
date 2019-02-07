@@ -127,7 +127,21 @@ class Python3(LanguageModeWrapper):
         kwargs['binds'] = [('/dev/zero', '/dev/urandom', 'ro,dev'),
                            (prog_dir, inner_dir, 'ro')]
 
-        return self.executor(python + [inner_file] + args, **kwargs)
+        cmd = python + [inner_file]
+        alt_exe = self.exec_info.get('alternate_executable', None)
+        if alt_exe:
+            env = kwargs.get('env')
+            if not env:
+                env = os.environ.copy()
+                env['LC_ALL'] = 'en_US.UTF-8'
+                env['LANGUAGE'] = 'en_US.UTF-8'
+
+            env['PYTHONPATH'] = inner_dir
+            kwargs['env'] = env
+
+            cmd = [os.path.join(inner_dir, alt_exe)]
+
+        return self.executor(cmd + args, **kwargs)
 
     def preferred_filename(self):
         return self.exec_info.get('preferred_filename', 'a.tar')

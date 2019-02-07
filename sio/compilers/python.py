@@ -19,7 +19,7 @@ class PythonCompiler(Compiler):
 
     def _make_filename(self):
         source_base = os.path.basename(self.environ['source_file'])
-        self.module_name = self.environ.get('problem_short_name',
+        self.module_name = 'sol' + self.environ.get('problem_short_name',
                                             os.path.splitext(source_base)[0])
         return 'a/%s.py' % self.module_name
 
@@ -73,20 +73,59 @@ class PythonCompiler(Compiler):
 
         return renv
 
+    def _process_wrapper(self, executor, wrapper):
+        source_base = os.path.basename(self.source_file)
+        cxxflags = ['-std=c++11', '-O3', '-fPIC', '-DSOL_NAME=\"%s\"' % self.module_name, '-I/usr/include/python3.4m']
+
+        gxx = '/usr/bin/g++'
+
+        cxx_files = []
+        o_files = []
+        res_exe = ''
+        with open(tempcwd(wrapper)) as f:
+            cxx_files = f.readline().strip('\n').split()
+            o_files = f.readline().strip('\n').split()
+            res_exe = f.readline().strip('\n')
+
+        stdout = ''
+        for cxx_file in cxx_files:
+            compile_lib = [gxx] + cxxflags + ['-c', cxx_file]
+            renv = self._execute(executor, compile_lib)
+            stdout += renv['stdout']
+            renv['stdout'] = stdout
+            if renv['return_code']:
+                return renv
+
+        link = [gxx, '-lpython3.4m', '-o', res_exe] + o_files
+        renv = self._execute(executor, link)
+        stdout += renv['stdout']
+        renv['stdout'] = stdout
+        if renv['return_code']:
+            return renv
+
+        shutil.move(tempcwd(res_exe), tempcwd(self._source_dir))
+        self._alt_executable = res_exe
+
+        return renv
+
     def _run_in_executor(self, executor):
         python = [self.python_executable_path]
 
         source_dir = os.path.dirname(self.source_file)
         self._source_dir = source_dir
+        self._alt_executable = None
 
         extra_files = self.environ.get('extra_files', {})
         logger.debug('extra_files: %r', extra_files)
         for extra_file in six.iterkeys(extra_files):
-            if not extra_file.endswith('.i'):
+            if extra_file.endswith('.i'):
+                logger.debug('swig: %s', extra_file)
+                renv = self._process_swig(executor, extra_file[:-2])
+            elif extra_file.endswith('.wrapper'):
+                logger.debug('wrapper: %s', extra_file)
+                renv = self._process_wrapper(executor, extra_file)
+            else:
                 continue
-
-            logger.debug('swig: %s', extra_file)
-            renv = self._process_swig(executor, extra_file[:-2])
             if renv['return_code']:
                 return renv
 
@@ -118,6 +157,8 @@ class PythonCompiler(Compiler):
                     'preferred_filename': 'a.tar',
                     'main_file': '%s.py' % self.module_name,
             }
+            if self._alt_executable:
+                environ['exec_info']['alternate_executable'] = self._alt_executable
         return environ
 
     @classmethod
