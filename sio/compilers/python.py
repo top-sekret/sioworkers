@@ -7,7 +7,7 @@ import time
 class PythonCompiler(Compiler):
     sandbox = 'python.3_6_5'
     lang = 'py'
-    output_file = 'a.pyc' # hardcoded anyway in python3compile.py
+    output_file = 'a.zip' # hardcoded anyway in python3compile.py
     options = []  # Compiler options
 
     def _make_cmdline(self, executor):

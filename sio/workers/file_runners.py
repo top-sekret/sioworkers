@@ -106,7 +106,7 @@ class Python(LanguageModeWrapper):
         return self.executor([cmd] + args, **kwargs)
 
     def preferred_filename(self):
-        return 'exe.pyc'
+        return 'exe.zip'
 
 class _BaseJava(LanguageModeWrapper):
     handled_exec_mode = 'java'

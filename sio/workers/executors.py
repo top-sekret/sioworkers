@@ -10,6 +10,7 @@ import traceback
 from os import path
 import random
 import shutil
+import zipfile
 import json
 
 from sio.workers import util, elf_loader_patch
@@ -760,6 +761,11 @@ class BasicIsolateExecutor(UnprotectedExecutor):
             with open(target, 'w+') as f:
                 f.write(content)
 
+    def add_zip(self, name, perm, source=None, content=None):
+        target = os.path.dirname(os.path.join(self.isolate_root, name))
+        zf = zipfile.ZipFile(source, 'r')
+        zf.extractall(target)
+
     @property
     def meta(self):
         res = dict()
@@ -977,10 +983,11 @@ class Terrarium2Executor(BasicIsolateExecutor):
         self.dirs += [['/dev', '_del']]
 
         self.err_filename = 'rw/err'
-        self.exe_filename = 'rw/a.pyc'
+        self.zip_file = 'rw/a.zip'
         self.in_filename = 'r/in'
         self.out_filename = 'rw/out'
-        
+        self.exe_filename = 'rw/__main__.pyc'
+
         self.init_subdirectories()
 
     def __enter__(self):
@@ -1002,10 +1009,11 @@ class Terrarium2Executor(BasicIsolateExecutor):
     def _execute(self, command, **kwargs):
     
         self.add_file(self.err_filename, 0o766, None, None)
-        self.add_file(self.exe_filename, 0o744, command[0], None)
+        self.add_zip(self.zip_file, 0o744, command[0], None)
         self.add_file(self.in_filename, 0o744, None, kwargs['stdin'].read())
         self.add_file(self.out_filename, 0o766, None, None)
-        
+
+        command[0] = '__main__.py'
         renv = super(Terrarium2Executor, self)._execute([], **kwargs)
         renv = self.build_renv(renv)
         messages = open(os.path.join(self.isolate_root, self.err_filename), 'r').read()
