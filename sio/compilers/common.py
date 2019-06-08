@@ -11,7 +11,7 @@ from sio.feedback import compilation_started, compilation_finished
 logger = logging.getLogger(__name__)
 
 DEFAULT_COMPILER_TIME_LIMIT = 30000  # in ms
-DEFAULT_COMPILER_MEM_LIMIT = 512 * 2**10  # in KiB
+DEFAULT_COMPILER_MEM_LIMIT = 1024 * 2**10  # in KiB
 DEFAULT_COMPILER_OUTPUT_LIMIT = 5 * 2**10  # in KiB
 
 

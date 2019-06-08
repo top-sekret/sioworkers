@@ -49,6 +49,7 @@ setup(
             'default-pas = sio.compilers.fpc:run_default',
             'default-java = sio.compilers.java:run_default',
             'default-py = sio.compilers.python:run_python',
+            'default-hs = sio.compilers.haskell:run_haskell',
 
             # Sandboxed compilers:
             'c = sio.compilers.gcc:run_gcc',
