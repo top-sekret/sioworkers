@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "formatters": {
+    "simple": {
+      "format": "%(levelname)s:%(name)s:%(message)s"
+    },
+    "thread": {
+      "format": "%(thread)d:%(levelname)s:%(name)s:%(message)s"
+    },
+    "syslog": {
+      "format": "oioioiworker[%(process)d]: %(name)s: %(message)s"
+    }
+  },
+  "handlers": {
+    "stderr": {
+      "class": "logging.StreamHandler",
+      "level": "DEBUG",
+      "formatter": "thread",
+      "stream": "ext://sys.stderr"
+    },
+    "syslog": {
+      "class": "logging.handlers.SysLogHandler",
+      "level": "DEBUG",
+      "formatter": "syslog",
+      "address": "/dev/log"
+    }
+  },
+  "root": {
+    "level": "DEBUG",
+    "handlers": ["stderr"]
+  }
+}
+

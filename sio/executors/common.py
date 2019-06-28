@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 import os
+import logging
 from shutil import rmtree
 from zipfile import ZipFile, is_zipfile
 from sio.workers import ft
@@ -8,6 +9,8 @@ from sio.workers.file_runners import get_file_runner
 
 from sio.executors import checker
 import six
+
+logger = logging.getLogger(__name__)
 
 def _populate_environ(renv, environ):
     """Takes interesting fields from renv into environ"""
@@ -29,6 +32,9 @@ def run(environ, executor, use_sandboxes=True):
     :param: use_sandboxes Enables safe checking output correctness.
                        See `sio.executors.checkers`. True by default.
     """
+
+    logger.debug("running exec job %s %s", environ['job_type'], environ.get('task_id', ''))
+
     input_name = tempcwd('in')
 
     file_executor = get_file_runner(executor, environ)

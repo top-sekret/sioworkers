@@ -108,6 +108,8 @@ def execute_command(command, env=None, split_lines=False, stdin=None,
             env[key] = str(value)
 
     perf_timer = util.PerfTimer()
+    logger.debug('about to Popen')
+
     p = subprocess.Popen(command,
                          stdin=stdin,
                          stdout=stdout,
@@ -120,6 +122,8 @@ def execute_command(command, env=None, split_lines=False, stdin=None,
                          cwd=tempcwd(),
                          preexec_fn=os.setpgrp)
 
+    logger.debug('Popened')
+
     kill_timer = None
     if real_time_limit:
         def oot_killer():
@@ -128,7 +132,9 @@ def execute_command(command, env=None, split_lines=False, stdin=None,
         kill_timer = Timer(ms2s(real_time_limit), oot_killer)
         kill_timer.start()
 
+    logger.debug('about to wait')
     rc = p.wait()
+    logger.debug('waited')
     ret_env['return_code'] = rc
 
     if kill_timer:

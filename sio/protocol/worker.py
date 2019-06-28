@@ -1,4 +1,7 @@
 from __future__ import absolute_import
+
+import logging
+
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet import threads
 from sio.workers import runner
@@ -8,10 +11,13 @@ from twisted.logger import Logger, LogLevel
 import six
 
 log = Logger()
+pylog = logging.getLogger(__name__)
 
 # ingen replaces the environment, so merge it
 def _runner_wrap(env):
+    pylog.debug("started %s %s", env['job_type'], env['task_id'])
     renv = runner.run(env)
+    pylog.debug("finished %s %s", env['job_type'], env['task_id'])
     env.update(renv)
     return env
 
