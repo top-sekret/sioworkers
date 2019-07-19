@@ -8,12 +8,10 @@ def with_connection(fn):
     def wrapped(*args, **kwargs):
         server = xmlrpclib.ServerProxy(CONNECT_TO, allow_none=True)
 
-        for i in range(3):
-            try:
-                return fn(server, *args, **kwargs)
-            except Exception:
-                if i == 2: raise
-                time.sleep(0.5)
+        try:
+            return fn(server, *args, **kwargs)
+        except Exception:
+            pass
 
     return wrapped
 
