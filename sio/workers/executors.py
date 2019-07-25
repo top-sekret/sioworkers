@@ -786,7 +786,7 @@ class BasicIsolateExecutor(UnprotectedExecutor):
         except ExecError:
             pass
 
-    def flags(self):
+    def flags(self, **kwargs):
 
         flags = ['--box-id=auto']
 
@@ -809,9 +809,6 @@ class BasicIsolateExecutor(UnprotectedExecutor):
         # wall-time limit
         flags.append('--wall-time=%f' % (self.time_limit * 20))
 
-        # block time limit
-        flags.append('--block=%d' % (2000) )
-
         # instr limit
         flags.append('--instr=%d' % (self.time_limit * (2 * 10 ** 9)))
 
@@ -821,6 +818,13 @@ class BasicIsolateExecutor(UnprotectedExecutor):
         # fsize limit
 	flags.append('--fsize=%d' % (1024*20))
 
+	processes = kwargs['environ']['processes']
+	if processes > 1:
+	    flags.append('--cg')
+            flags.append('--processes=%d\n' % processes)
+	else:
+            # block time limit
+            flags.append('--block=%d' % (2000) )
 	return flags
 
     def cmdline(self):
@@ -877,7 +881,7 @@ class BasicIsolateExecutor(UnprotectedExecutor):
         kwargs["capture_output"] = True
 
         command = ['isolate'] + \
-                  self.flags() + \
+                  self.flags(**kwargs) + \
                   ['--onetime', '--'] + \
                   self.cmdline()
 
@@ -902,8 +906,8 @@ class IsolateExecutor(BasicIsolateExecutor):
 
         self.init_subdirectories()
 
-    def flags(self):
-        return super(IsolateExecutor, self).flags() + [
+    def flags(self, **kwargs):
+        return super(IsolateExecutor, self).flags(**kwargs) + [
             noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)),
             noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.out_filename)),
             noquote('--stderr="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
@@ -950,8 +954,8 @@ class TerrariumExecutor(BasicIsolateExecutor):
         self.sandbox.__enter__()
         return self
 
-    def flags(self):
-        return super(TerrariumExecutor, self).flags() + [
+    def flags(self, **kwargs):
+        return super(TerrariumExecutor, self).flags(**kwargs) + [
             noquote('--stderr-to-stdout'),
             noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
             noquote('--dir="%s"="%s"' % ('/python3', self.sandbox.path)),
@@ -994,8 +998,8 @@ class Terrarium2Executor(BasicIsolateExecutor):
         self.sandbox.__enter__()
         return self
 
-    def flags(self):
-        return super(Terrarium2Executor, self).flags() + [
+    def flags(self, **kwargs):
+        return super(Terrarium2Executor, self).flags(**kwargs) + [
             noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.out_filename)),
             noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)),
             noquote('--stderr="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
