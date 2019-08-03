@@ -818,7 +818,7 @@ class BasicIsolateExecutor(UnprotectedExecutor):
         # fsize limit
 	flags.append('--fsize=%d' % (1024*20))
 
-	processes = kwargs['environ']['processes']
+	processes = kwargs['environ'].get('processes', 1)
 	if processes > 1:
 	    flags.append('--cg')
             flags.append('--processes=%d\n' % processes)
