@@ -7,11 +7,7 @@ CONNECT_TO='http://'+os.environ['SIOWORKERSD_HOST']+':7899'
 def with_connection(fn):
     def wrapped(*args, **kwargs):
         server = xmlrpclib.ServerProxy(CONNECT_TO, allow_none=True)
-
-        try:
-            return fn(server, *args, **kwargs)
-        except Exception:
-            pass
+        return fn(server, *args, **kwargs)
 
     return wrapped
 
