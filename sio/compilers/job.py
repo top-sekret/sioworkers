@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 import sys
 import os.path
+import logging
 
 try:
     import json
@@ -12,11 +13,16 @@ except (ImportError, AttributeError):
 
 from sio.workers.util import first_entry_point, threadlocal_dir
 
+logger = logging.getLogger(__name__)
+
 
 def run(environ):
     if 'compiler' not in environ:
         _, extension = os.path.splitext(environ['source_file'])
         environ['compiler'] = 'default-' + extension[1:].lower()
+
+    logger.debug("running compile job %s %s", environ['compiler'], environ.get('task_id', ''))
+
     compiler = first_entry_point('sio.compilers',
                                  environ['compiler'].split('.')[0])
     environ = compiler(environ)
