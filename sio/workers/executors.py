@@ -627,7 +627,10 @@ class PRootExecutor(BaseExecutor):
     def __init__(self, sandbox):
         """``sandbox`` has to be a sandbox name."""
         self.chroot = get_sandbox(sandbox)
-        self.proot = SandboxExecutor('proot-sandbox')
+        if sandbox.endswith('amd64'):
+            self.proot = SandboxExecutor('proot-sandbox-64')
+        else:
+            self.proot = SandboxExecutor('proot-sandbox')
 
         self.options = []
         with self.chroot:
@@ -690,7 +693,8 @@ class PRootExecutor(BaseExecutor):
             sh_patched = elf_loader_patch._get_unpatched_name(
                 path.realpath(path_join_abs(self.chroot.path, sh_target)))
             if path.exists(sh_patched):
-                self._bind(sh_patched, sh_target, force=True)
+                #self._bind(sh_patched, sh_target, force=True)
+                pass
 
         self._bind(os.path.join(self.proot.path, 'lib'), 'lib')
         self._bind(tempcwd(), 'tmp', force=True)

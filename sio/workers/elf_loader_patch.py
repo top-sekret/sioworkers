@@ -1,5 +1,6 @@
 import os, os.path
 import logging
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -8,7 +9,7 @@ EXT = '.old_elf_loader'
 def _get_unpatched_name(path):
     return '%s%s' % (path, EXT)
 
-def _patch_elf_loader(path):
+def _patch_elf_loader(path, arch='i386'):
     """Patches ELF files making them use loader from sandbox.
 
        Modifies all executable ELF files in the sandbox so that they are run
@@ -29,7 +30,10 @@ def _patch_elf_loader(path):
     """
 
     path = os.path.abspath(path)
-    loader = os.path.join(path, 'lib', 'ld-linux.so.2')
+    if arch == 'amd64':
+        loader = os.path.join(path, 'lib', 'x86_64-linux-gnu', 'ld-linux-x86-64.so.2')
+    else:
+        loader = os.path.join(path, 'lib', 'ld-linux.so.2')
     if not os.path.exists(loader):
         logger.info("Not patching sandbox: %s", path)
         return False

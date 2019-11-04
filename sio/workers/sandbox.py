@@ -125,7 +125,7 @@ class Sandbox(object):
 
     _instances = weakref.WeakValueDictionary()
 
-    required_fixups = set(('elf_loader_patch',))
+    required_fixups = set() # set(('elf_loader_patch',))
 
     @classmethod
     def _instance(cls, name):
@@ -137,6 +137,7 @@ class Sandbox(object):
 
     def __init__(self, name):
         self.name = name
+        self.arch = 'amd64' if name.endswith('amd64') else 'i386'
 
         self.path = os.path.join(SANDBOXES_BASEDIR, name)
         _mkdir(SANDBOXES_BASEDIR)
@@ -235,7 +236,7 @@ class Sandbox(object):
         """
         operative = {}
         if 'elf_loader_patch' in self.required_fixups:
-            operative['elf_loader_patch'] = _patch_elf_loader(self.path)
+            operative['elf_loader_patch'] = _patch_elf_loader(self.path, self.arch)
 
         fixups_file = os.path.join(self.path, '.fixups_applied')
         open(fixups_file, 'w').write('\n'.join(self.required_fixups))

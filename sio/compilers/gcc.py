@@ -6,6 +6,11 @@ class CCompiler(CStyleCompiler):
     lang = 'c'
     options = ['-std=gnu99', '-static', '-O2', '-s', '-lm']
 
+    def __init__(self, cconf):
+        if cconf is not None:
+            self.sandbox = cconf['compiler']
+            self.options = cconf['cflags'].split(' ')
+        super(CCompiler, self).__init__()
 
 class CPPCompiler(CStyleCompiler):
     sandbox = 'gcc.4_8_2'
@@ -13,12 +18,18 @@ class CPPCompiler(CStyleCompiler):
     compiler = 'g++'
     options = ['-std=c++11', '-static', '-O2', '-s', '-lm']
 
+    def __init__(self, cconf):
+        if cconf is not None:
+            self.sandbox = cconf['compiler']
+            self.options = cconf['cxxflags'].split(' ')
+        super(CPPCompiler, self).__init__()
+
 def run_gcc(environ):
-    return CCompiler().compile(environ)
+    return CCompiler(environ.get('cconf')).compile(environ)
 
 
 def run_gplusplus(environ):
-    return CPPCompiler().compile(environ)
+    return CPPCompiler(environ.get('cconf')).compile(environ)
 
 
 run_default_c = run_gcc
