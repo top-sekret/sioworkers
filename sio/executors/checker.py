@@ -56,7 +56,7 @@ def _run_checker(env, use_sandboxes=False):
     return renv['stdout']
 
 def _run_compare(env):
-    e = SandboxExecutor('exec-sandbox')
+    e = SandboxExecutor('exec-sandbox-v1.1')
     renv = _run_in_executor(env, [os.path.join('bin', 'compare'),
             'hint', 'out'], e, ignore_errors=True)
     return renv['stdout']
