@@ -729,7 +729,7 @@ class SupervisedExecutor(_SIOSupervisedExecutor):
         self.options = ['-q', '-f', '3']
         if allow_local_open:
             self.options += ['-l']
-        super(SupervisedExecutor, self).__init__('exec-sandbox-v1.1', **kwargs)
+        super(SupervisedExecutor, self).__init__('exec-sandbox-v1.2', **kwargs)
 
     def _execute(self, command, **kwargs):
         options = self.options
