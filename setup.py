@@ -50,6 +50,7 @@ setup(
             'default-java = sio.compilers.java:run_default',
             'default-py = sio.compilers.python:run_python',
             'default-hs = sio.compilers.haskell:run_haskell',
+            'default-ml = sio.compilers.ocaml:run_ocaml',
 
             # Sandboxed compilers:
             'c = sio.compilers.gcc:run_gcc',
