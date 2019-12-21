@@ -125,7 +125,7 @@ class Sandbox(object):
 
     _instances = weakref.WeakValueDictionary()
 
-    required_fixups = set() # set(('elf_loader_patch',))
+    required_fixups = set(('elf_loader_patch',))
 
     @classmethod
     def _instance(cls, name):
