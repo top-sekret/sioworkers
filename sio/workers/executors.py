@@ -728,6 +728,7 @@ class BasicIsolateExecutor(UnprotectedExecutor):
 
     def __init__(self):
 
+
         # get some "unique" judging id
         self.judging_id = ''
         for i in range(5):
@@ -892,7 +893,6 @@ class BasicIsolateExecutor(UnprotectedExecutor):
 
 	#raise RuntimeError(' '.join(command))
         renv = execute_command(command, **kwargs)
-
         return renv
 
 
@@ -915,7 +915,7 @@ class IsolateExecutor(BasicIsolateExecutor):
             noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)),
             noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.out_filename)),
             noquote('--stderr="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
-            '--seccomp'
+            #'--seccomp'
         ]
 
     def cmdline(self):
@@ -1008,7 +1008,7 @@ class Terrarium2Executor(BasicIsolateExecutor):
             noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)),
             noquote('--stderr="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
             noquote('--dir="%s"="%s"' % ('/python3', self.sandbox.path)),
-            '--seccomp',
+            #'--seccomp',
         ]
 
     def cmdline(self):
