@@ -4,7 +4,7 @@ import logging
 from zipfile import ZipFile
 
 from sio.workers import ft
-from sio.workers.executors import UnprotectedExecutor, PRootExecutor, TerrariumExecutor
+from sio.workers.executors import UnprotectedExecutor, PRootExecutor, TerrariumExecutor, SandboxExecutor
 from sio.workers.util import replace_invalid_UTF, tempcwd
 from sio.feedback import compilation_started, compilation_finished
 
@@ -64,6 +64,8 @@ class Compiler(object):
             self.executor = UnprotectedExecutor()
         elif self.lang == 'py':
             self.executor = TerrariumExecutor()
+        elif self.lang == 'ml':
+            self.executor = SandboxExecutor('compiler-ocaml')
         else:
             self.executor = PRootExecutor('compiler-' + self.sandbox)
 

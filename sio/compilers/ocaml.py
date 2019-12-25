@@ -10,7 +10,7 @@ class OcamlCompiler(Compiler):
     output_file = 'a'
 
     def _make_cmdline(self, executor):
-        return ['stat', 'a.ml']
+        return ['bin/sh', '-c', ['ocamlopt', '-verbose', '-ccopt', '-static', '-I', noquote('$HOME/.sio-sandboxes/compiler-ocaml/usr/lib/ocaml/'), '-o', 'a', 'a.ml']]
 
 def run_ocaml(environ):
     return OcamlCompiler().compile(environ)

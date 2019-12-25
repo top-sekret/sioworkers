@@ -710,9 +710,12 @@ class PRootExecutor(BaseExecutor):
         options = self.options + kwargs.pop('proot_options', [])
         command = [path.join('proot', 'proot')] + options + \
                   [path.join(self.rpath, 'bin', 'sh'), '-c', command]
-
-        return self.proot._execute(command, **kwargs)
-
+        def log(s):
+            open('/tmp/proot.log', 'a+').write(s+'\n')
+        log(str(command))
+        r = self.proot._execute(command, **kwargs)
+        log (str(r))
+        return r
     @property
     def rpath(self):
         """Contains path to sandbox root as visible during command execution."""
