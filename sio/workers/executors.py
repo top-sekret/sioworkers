@@ -653,7 +653,7 @@ class Sio2JailExecutor(CompoundSandboxExecutor, _SIOSupervisedExecutor):
     REAL_TIME_LIMIT_MULTIPLIER = 16
     REAL_TIME_LIMIT_ADDEND = 30000  # (in ms)
 
-    tool_sandbox = 'sio2jail_exec-sandbox-1.1.0'
+    tool_sandbox = 'sio2jail_exec-sandbox-1.3.0'
     get_sandbox_extra_args = {'flavor': 'pristine'}
 
     def __init__(self, sandbox=None):
