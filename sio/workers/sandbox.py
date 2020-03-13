@@ -293,14 +293,15 @@ class Sandbox(object):
 
             archive_path = path + '.tar.gz'
 
-            try:
+            if False: #HACK
                 ft_path = _filetracker_path(name)
                 ft_client = ft.instance()
                 vname = ft_client.get_file(ft_path, archive_path)
                 version = ft_client.file_version(vname)
-            except Exception:
-                logger.warning("Failed to download sandbox from filetracker",
-                        exc_info=True)
+#            except Exception:
+#                logger.warning("Failed to download sandbox from filetracker",
+#                        exc_info=True)
+            else:
                 if SANDBOXES_URL:
                     url = SANDBOXES_URL + '/' + _urllib_path(name)
                     logger.info("  trying url: %s", url)
