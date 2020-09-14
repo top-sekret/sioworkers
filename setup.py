@@ -89,6 +89,7 @@ setup(
             'g++4_8_2_cpp11 = sio.compilers.gcc:run_cpp_gcc4_8_2_cpp11',
             'g++6_3_cpp14 = sio.compilers.gcc:run_cpp_gcc6_3_cpp14',
             'g++8_3_cpp17 = sio.compilers.gcc:run_cpp_gcc8_3_cpp17',
+            'g++8_3_cpp17_amd64 = sio.compilers.gcc:run_cpp_gcc8_3_cpp17_amd64',
 
             'pas = sio.compilers.fpc:run_pas_default',
             'fpc2_6_2 = sio.compilers.fpc:run_pas_fpc2_6_2',
@@ -99,6 +100,7 @@ setup(
             'python_3_4_numpy = sio.compilers.python:run_python3_4_numpy',
             'python_3_7 = sio.compilers.python:run_python3_7',
             'python_3_7_numpy = sio.compilers.python:run_python3_7_numpy',
+            'python_3_7_numpy_amd64 = sio.compilers.python:run_python3_7_numpy_amd64',
             'py = sio.compilers.python:run_python_default',
 
             # Non-sandboxed compilers
