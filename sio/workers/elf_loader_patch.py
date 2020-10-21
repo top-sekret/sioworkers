@@ -28,10 +28,9 @@ def _patch_elf_loader(path, arch='i386'):
        (new line separated) files and directories which should be ignored by
        _patch_elf_loader.
     """
-
     path = os.path.abspath(path)
     if arch == 'amd64':
-        loader = os.path.join(path, 'lib', 'x86_64-linux-gnu', 'ld-linux-x86-64.so.2')
+        loader = os.path.join(path, 'usr', 'lib64', 'ld-linux-x86-64.so.2')
     else:
         loader = os.path.join(path, 'lib', 'ld-linux.so.2')
     if not os.path.exists(loader):
