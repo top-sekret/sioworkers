@@ -967,6 +967,8 @@ class TerrariumExecutor(BasicIsolateExecutor):
             noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
             noquote('--dir="%s"="%s"' % ('/python3', self.sandbox.path)),
             noquote('--dir="%s"="%s":rw' % ('/source', os.path.dirname(self.src_path))),
+            noquote('-EPYTHONPATH="/python3/usr/local/lib/python38.zip:/python3/usr/local/lib/python3.8:/python3/usr/local/lib/python3.8/lib-dynload:/python3/usr/local/lib/python3.8/site-packages"'),
+            noquote('-EPYTHONHOME="/python3/usr/local"')
         ]
 
     def cmdline(self):
@@ -1011,7 +1013,8 @@ class Terrarium2Executor(BasicIsolateExecutor):
             noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)),
             noquote('--stderr="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
             noquote('--dir="%s"="%s"' % ('/python3', self.sandbox.path)),
-            #'--seccomp',
+            noquote('-EPYTHONPATH="/python3/usr/local/lib/python38.zip:/python3/usr/local/lib/python3.8:/python3/usr/local/lib/python3.8/lib-dynload:/python3/usr/local/lib/python3.8/site-packages"'),
+            noquote('-EPYTHONHOME="/python3/usr/local"')
         ]
 
     def cmdline(self):
