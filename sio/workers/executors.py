@@ -753,6 +753,11 @@ class BasicIsolateExecutor(UnprotectedExecutor):
 
         os.mkdir(self.isolate_root)
 
+    def mount_system(self, root, extra_dirs):
+        dirs = ['bin', 'etc', 'lib', 'lib64', 'usr', 'sbin', 'var'] + extra_dirs
+        return [noquote('--dir="/%s"="%s"'%(d, os.path.join(root, d))) for d in dirs]
+
+
     def init_subdirectories(self):
         for d in self.dirs:
             if d[1] != '_del':
@@ -965,19 +970,15 @@ class TerrariumExecutor(BasicIsolateExecutor):
         return super(TerrariumExecutor, self).flags(**kwargs) + [
             noquote('--stderr-to-stdout'),
             noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
-            noquote('--dir="%s"="%s"' % ('/python3', self.sandbox.path)),
             noquote('--dir="%s"="%s":rw' % ('/source', os.path.dirname(self.src_path))),
-            noquote('-EPYTHONPATH="/python3/usr/local/lib/python38.zip:/python3/usr/local/lib/python3.8:/python3/usr/local/lib/python3.8/lib-dynload:/python3/usr/local/lib/python3.8/site-packages"'),
-            noquote('-EPYTHONHOME="/python3/usr/local"')
-        ]
+        ] + self.mount_system(self.sandbox.path, ['util'])
 
     def cmdline(self):
-        return ['/python3/python', '/python3/python3compile.py', os.path.join('/source', os.path.basename(self.src_path))]
+        return ['/usr/local/bin/python3.8', '/util/python3compile.py', os.path.join('/source', os.path.basename(self.src_path))]
 
     def _execute(self, command, **kwargs):
         self.add_file(self.err_filename, 0o766, None, None)
         self.src_path = command[0]
-        
         renv = super(TerrariumExecutor, self)._execute([], **kwargs)
         renv = self.build_renv(renv)
         messages = open(os.path.join(self.isolate_root, self.err_filename), 'r').read()
@@ -1012,16 +1013,21 @@ class Terrarium2Executor(BasicIsolateExecutor):
             noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.out_filename)),
             noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)),
             noquote('--stderr="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
-            noquote('--dir="%s"="%s"' % ('/python3', self.sandbox.path)),
-            noquote('-EPYTHONPATH="/python3/usr/local/lib/python38.zip:/python3/usr/local/lib/python3.8:/python3/usr/local/lib/python3.8/lib-dynload:/python3/usr/local/lib/python3.8/site-packages"'),
-            noquote('-EPYTHONHOME="/python3/usr/local"')
-        ]
+            #noquote('--dir="%s"="%s"' % ('/python3', self.sandbox.path)),
+            #noquote('-EPYTHONPATH="/python3/usr/local/lib/python38.zip:/python3/usr/local/lib/python3.8:/python3/usr/local/lib/python3.8/lib-dynload:/python3/usr/local/lib/python3.8/site-packages"'),
+            #noquote('-EPYTHONHOME="/python3/usr/local"'),
+            #noquote('-EPATH="/python3/usr/local/sbin:/python3/usr/local/bin:/python3/usr/sbin:/python3/usr/bin:/python3/sbin:/python3/bin"')
+            noquote('-EOPENBLAS_NUM_THREADS=1'),
+            noquote('-EOMP_NUM_THREADS=1'),
+            noquote('-EMKL_NUM_THREADS=1'),
+            noquote('-EVECLIB_NUM_THREADS=1'),
+            noquote('-ENUMEXPR_NUM_THREADS=1'),
+        ] + self.mount_system(self.sandbox.path, ['util'])
 
     def cmdline(self):
-        return ['/python3/python', os.path.join(self.mapped_dir, self.exe_filename)]
+        return ['/usr/local/bin/python3.8', os.path.join(self.mapped_dir, self.exe_filename)]
 
     def _execute(self, command, **kwargs):
-    
         self.add_file(self.err_filename, 0o766, None, None)
         self.add_zip(self.zip_file, 0o744, command[0], None)
         self.add_file(self.in_filename, 0o744, None, kwargs['stdin'].read())
