@@ -14,12 +14,12 @@ setup(
 
     install_requires = [
         'filetracker==1.1.0',
-        'simplejson',
-        'Celery>=3.1.15',
-        'Twisted>=15.2.1',
-        'enum34',  # backport from py3
-        'supervisor>=3.3.1',
-        'sortedcontainers',
+        'simplejson==3.16.0',
+        'Celery==4.4.0',
+        'Twisted==19.10.0',
+        'enum34==1.6.1',  # backport from py3
+        'supervisor==4.1.0',
+        'sortedcontainers===2.1.0',
     ],
 
     setup_requires = [
