@@ -837,7 +837,7 @@ class BasicIsolateExecutor(UnprotectedExecutor):
             flags.append('--processes=%d\n' % processes)
 	else:
             # block time limit
-            flags.append('--block=%d' % (2000) )
+            flags.append('--block=%d' % (60*1000) )
 	return flags
 
     def cmdline(self):
