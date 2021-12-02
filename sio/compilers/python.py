@@ -187,6 +187,13 @@ class PythonCompiler(Compiler):
         obj.python_executable_path = '/usr/bin/python3.7'
         return obj
 
+    @classmethod
+    def python_3_9_numpy_amd64(cls):
+        obj = cls('python3.9.2-numpy_amd64')
+        obj.python_executable_path = '/usr/bin/python3.9'
+        return obj
+
+
 
 def run_python3_4_numpy(environ):
     return PythonCompiler().python_3_4_numpy().compile(environ)
@@ -199,5 +206,8 @@ def run_python3_7_numpy_amd64(environ):
 
 def run_python3_7_numpy(environ):
     return PythonCompiler().python_3_7_numpy().compile(environ)
+
+def run_python3_9_numpy_amd64(environ):
+    return PythonCompiler().python_3_9_numpy_amd64().compile(environ)
 
 run_python_default = run_python3_4_numpy
