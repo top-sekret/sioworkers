@@ -659,13 +659,14 @@ class Sio2JailExecutor(CompoundSandboxExecutor, _SIOSupervisedExecutor):
     REAL_TIME_LIMIT_MULTIPLIER = 16
     REAL_TIME_LIMIT_ADDEND = 30000  # (in ms)
 
-    tool_sandbox = 'sio2jail_exec-sandbox-1.3.0'
+    tool_sandbox = 'sio2jail_exec-sandbox-1.4.2'
     get_sandbox_extra_args = {'flavor': 'pristine'}
 
-    def __init__(self, sandbox=None):
+    def __init__(self, sandbox=None, measure_real_time=False):
         super(Sio2JailExecutor, self).__init__(sandbox)
         if not sandbox:
             self.chroot.path = os.path.join(self.tool.path, 'boxes/minimal')
+        self.measure_real_time = measure_real_time
 
     def _execute_supervisor(self, command, **kwargs):
         options = []
@@ -680,15 +681,21 @@ class Sio2JailExecutor(CompoundSandboxExecutor, _SIOSupervisedExecutor):
 
         options += ['--memory-limit',
             str(kwargs['mem_limit']) + 'K']
-        options += ['--instruction-count-limit',
-            str(kwargs['time_limit'] *
-            self.INSTRUCTIONS_PER_VIRTUAL_SECOND / 1000)]
 
-        if kwargs['real_time_limit']:
+        if self.measure_real_time:
             options += ['--rtimelimit',
-                    str(kwargs['real_time_limit']) + 'ms']
-            # Limiting outside supervisor
-            kwargs['real_time_limit'] = 2 * kwargs['real_time_limit']
+                    str(kwargs['time_limit']) + 'ms']
+            options += ['-o', 'oireal']
+        else:
+            options += ['--instruction-count-limit',
+                str(kwargs['time_limit'] *
+                self.INSTRUCTIONS_PER_VIRTUAL_SECOND / 1000)]
+
+            if kwargs['real_time_limit']:
+                options += ['--rtimelimit',
+                        str(kwargs['real_time_limit']) + 'ms']
+                # Limiting outside supervisor
+                kwargs['real_time_limit'] = 2 * kwargs['real_time_limit']
 
         # sio2jail defaults to KB, so append 'b' explicitly
         options += ['--output-limit',
