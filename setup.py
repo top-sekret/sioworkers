@@ -27,7 +27,6 @@ setup(
         'importlib-metadata==3.4.0',
         'incremental==17.5.0',
         'kombu==4.6.11',
-        'pkg-resources==0.0.0',
         'poster==0.8.1',
         'PyHamcrest==2.0.2',
         'pytz==2021.1',
