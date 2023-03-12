@@ -7,10 +7,11 @@ from threading import Timer
 import logging
 import re
 import sys
+import datetime
 import traceback
 from os import path
 
-from sio.workers import util, elf_loader_patch
+from sio.workers import util
 from sio.workers.sandbox import get_sandbox
 from sio.workers.util import (
     ceil_ms2s,
@@ -79,6 +80,7 @@ def execute_command(
     real_time_limit=None,
     ignore_errors=False,
     extra_ignore_errors=(),
+    pass_fds=(),
     **kwargs
 ):
     """Utility function to run arbitrary command.
@@ -111,12 +113,15 @@ def execute_command(
 
     ``stdout``
       Only when ``capture_output=True``: output of the command
+
+    ``pass_fds``
+      Extra file descriptors to pass to the command.
     """
     # Using temporary file is way faster than using subproces.PIPE
     # and it prevents deadlocks.
     command = shellquote(command)
 
-    logger.debug('Executing: %s', command)
+    logger.info('Executing: %s', command)
 
     stdout = capture_output and tempfile.TemporaryFile() or stdout
     # redirect output to /dev/null if None given
@@ -141,6 +146,7 @@ def execute_command(
         env=env,
         cwd=tempcwd(),
         preexec_fn=os.setpgrp,
+        pass_fds=pass_fds,
     )
 
     kill_timer = None
@@ -479,103 +485,16 @@ class SandboxExecutor(UnprotectedExecutor):
 
         env = kwargs.get('env')
         env['PATH'] = '%s:%s' % (self._env_paths('bin'), env['PATH'])
-
-        if not self.sandbox.has_fixup('elf_loader_patch'):
-            env['LD_LIBRARY_PATH'] = self._env_paths('lib')
+        new_library_path = self._env_paths('lib')
+        if 'LD_LIBRARY_PATH' in env:
+            new_library_path += ':'
+            new_library_path += env['LD_LIBRARY_PATH']
+        env['LD_LIBRARY_PATH'] = new_library_path
 
         return super(SandboxExecutor, self)._execute(command, **kwargs)
 
 
-class _SIOSupervisedExecutor(SandboxExecutor):
-    _supervisor_codes = {
-        0: 'OK',
-        120: 'OLE',
-        121: 'RV',
-        124: 'MLE',
-        125: 'TLE',
-    }
-
-    def __init__(self, sandbox_name):
-        super(_SIOSupervisedExecutor, self).__init__(sandbox_name)
-
-    def _supervisor_result_to_code(self, result):
-        return self._supervisor_codes.get(int(result), 'RE')
-
-    @decode_fields(['result_string'])
-    def _execute(self, command, **kwargs):
-        env = kwargs.get('env')
-        env.update(
-            {
-                'MEM_LIMIT': kwargs['mem_limit'] or 64 * 2 ** 10,
-                'TIME_LIMIT': kwargs['time_limit'] or 30000,
-                'OUT_LIMIT': kwargs['output_limit'] or 50 * 2 ** 20,
-            }
-        )
-
-        if kwargs['real_time_limit']:
-            env['HARD_LIMIT'] = 1 + ceil_ms2s(kwargs['real_time_limit'])
-        elif kwargs['time_limit'] and kwargs['real_time_limit'] is None:
-            env['HARD_LIMIT'] = 1 + ceil_ms2s(64 * kwargs['time_limit'])
-
-        if 'HARD_LIMIT' in env:
-            # Limiting outside supervisor
-            kwargs['real_time_limit'] = 2 * s2ms(env['HARD_LIMIT'])
-
-        ignore_errors = kwargs.pop('ignore_errors')
-        extra_ignore_errors = kwargs.pop('extra_ignore_errors')
-        renv = {}
-        try:
-            result_file = tempfile.NamedTemporaryFile(dir=tempcwd())
-            kwargs['ignore_errors'] = True
-            renv = execute_command(
-                command + [noquote('3>'), result_file.name], **kwargs
-            )
-
-            if 'real_time_killed' in renv:
-                raise ExecError('Supervisor exceeded realtime limit')
-            elif renv['return_code'] and renv['return_code'] not in extra_ignore_errors:
-                raise ExecError('Supervisor returned code %s' % renv['return_code'])
-
-            result_file.seek(0)
-            status_line = result_file.readline().strip().split()[1:]
-            renv['result_string'] = result_file.readline().strip()
-            result_file.close()
-            for num, key in enumerate(
-                ('result_code', 'time_used', None, 'mem_used', 'num_syscalls')
-            ):
-                if key:
-                    renv[key] = int(status_line[num])
-
-            result_code = self._supervisor_result_to_code(renv['result_code'])
-
-        except Exception as e:
-            logger.error('SupervisedExecutor error: %s', traceback.format_exc())
-            logger.error(
-                'SupervisedExecutor error dirlist: %s: %s',
-                tempcwd(),
-                str(os.listdir(tempcwd())),
-            )
-
-            result_code = 'SE'
-            for i in ('time_used', 'mem_used', 'num_syscalls'):
-                renv.setdefault(i, 0)
-            renv['result_string'] = str(e)
-
-        renv['result_code'] = result_code
-
-        if (
-            result_code != 'OK'
-            and not ignore_errors
-            and not (result_code != 'RV' and renv['return_code'] in extra_ignore_errors)
-        ):
-            raise ExecError(
-                'Failed to execute command: %s. Reason: %s'
-                % (command, renv['result_string'])
-            )
-        return renv
-
-
-class Sio2JailExecutor(SandboxExecutor):
+class Sio2JailExecutor(UnprotectedExecutor):
     """Runs program in controlled environment while counting CPU instructions
     using Sio2Jail.
 
@@ -598,12 +517,16 @@ class Sio2JailExecutor(SandboxExecutor):
     REAL_TIME_LIMIT_MULTIPLIER = 16
     REAL_TIME_LIMIT_ADDEND = 1000  # (in ms)
 
-    def __init__(self):
-        super(Sio2JailExecutor, self).__init__('sio2jail_exec-sandbox')
+    def __init__(self, sandbox='empty-exe'):
+        super(Sio2JailExecutor, self).__init__()
+        self.sandbox = get_sandbox(sandbox)
+        with self.sandbox:
+            pass
 
     def _execute(self, command, **kwargs):
         options = []
-        options += ['-b', os.path.join(self.rpath, 'boxes/minimal') + ':/:ro']
+        # TODO
+        options += ['-b', self.sandbox.path + ':/:ro']
         options += [
             '--memory-limit',
             str(kwargs['mem_limit'] or self.DEFAULT_MEMORY_LIMIT) + 'K',
@@ -629,17 +552,26 @@ class Sio2JailExecutor(SandboxExecutor):
             '--output-limit',
             str(kwargs['output_limit'] or self.DEFAULT_OUTPUT_LIMIT) + 'K',
         ]
-        command = [os.path.join(self.rpath, 'sio2jail')] + options + ['--'] + command
+        # TODO
+        #options += [
+        #    '-l', '/tmp/sio2jaillog' + str(int(datetime.datetime.now().timestamp() * 1000))
+        #]
+        options += ['-s']
 
         renv = {}
         try:
             result_file = tempfile.NamedTemporaryFile(dir=tempcwd())
+
+            # TODO
+            options += ['-f', str(result_file.fileno())]
+            command = ['/usr/local/bin/sio2jail'] + options + ['--'] + command
+
             kwargs['ignore_errors'] = True
-            renv = execute_command(
-                command + [noquote('2>'), result_file.name], **kwargs
-            )
+            kwargs['pass_fds'] = (result_file.fileno(),)
+            renv = execute_command(command, **kwargs)
 
             if renv['return_code'] != 0:
+                result_file.seek(0)
                 raise ExecError(
                     'Sio2Jail returned code %s, stderr: %s'
                     % (renv['return_code'], six.ensure_text(result_file.read(10240)))
@@ -667,7 +599,7 @@ class Sio2JailExecutor(SandboxExecutor):
                 renv['result_code'] = 'OLE'
             elif renv['result_string'].startswith('intercepted forbidden syscall'):
                 renv['result_code'] = 'RV'
-            elif renv['result_string'].startswith('process exited due to signal'):
+            elif renv['result_string'].startswith('process exited due to signal') or renv['result_string'].startswith('runtime error'):
                 renv['result_code'] = 'RE'
             else:
                 raise ExecError(
@@ -696,99 +628,35 @@ class Sio2JailExecutor(SandboxExecutor):
         return renv
 
 
-class SupervisedExecutor(_SIOSupervisedExecutor):
-    """Executes program in supervised mode.
-
-       Sandboxing limitations may be controlled by passing following arguments
-       to constructor:
-
-         ``allow_local_open`` Allow opening files within current directory in \
-                              read-only mode
-
-         ``use_program_return_code`` Makes supervisor pass the program return \
-                                     code to renv['return_code'] rather than \
-                                     the sandbox return code.
-
-       Following new arguments are recognized in ``__call__``:
-
-          ``ignore_return`` Do not treat non-zero return code as runtime error.
-
-          ``java_sandbox`` Sandbox name with JRE.
-
-       Executed programs may only use stdin/stdout/stderr and manage it's
-       own memory. Returns extended statistics in ``renv`` containing:
-
-       ``time_used``: processor user time (in ms).
-
-       ``mem_used``: memory used (in KiB).
-
-       ``num_syscall``: number of times a syscall has been called
-
-       ``result_code``: short code reporting result of rule obeying. Is one of \
-                        ``OK``, ``RE``, ``TLE``, ``OLE``, ``MLE``, ``RV``
-
-       ``result_string``: string describing ``result_code``
-    """
-
-    def __init__(self, allow_local_open=False, use_program_return_code=False, **kwargs):
-        self.options = ['-q', '-f', '3']
-        if allow_local_open:
-            self.options += ['-l']
-        if use_program_return_code:
-            self.options += ['-r']
-        super(SupervisedExecutor, self).__init__('exec-sandbox', **kwargs)
-
-    def _execute(self, command, **kwargs):
-        options = self.options
-        if kwargs.get('ignore_return', False):
-            options = options + ['-R']
-
-        if kwargs.get('java_sandbox', ''):
-            java = get_sandbox(kwargs['java_sandbox'])
-            options = options + ['-j', os.path.join(java.path, 'usr', 'bin', 'java')]
-        else:
-            # Null context-manager
-            java = null_ctx_manager()
-
-        command = [os.path.join(self.rpath, 'bin', 'supervisor')] + options + command
-        with java:
-            return super(SupervisedExecutor, self)._execute(command, **kwargs)
-
-
-class PRootExecutor(BaseExecutor):
-    """PRootExecutor executor mimics ``chroot`` with ``mount --bind``.
+class YrdenExecutor(BaseExecutor):
+    """YrdenExecutor executor uses Yrden.
 
     During execution ``sandbox.path`` becomes new ``/``.
     Current working directory is visible as itself and ``/tmp``.
     Also ``sandbox.path`` remains accessible under ``sandbox.path``.
 
-    If *sandbox* doesn't contain ``/bin/sh`` or ``/lib``,
-    then some basic is bound from *proot sandbox*.
+    YrdenExecutor adds support of following arguments in ``__call__``:
 
-    For more information about PRoot see http://proot.me.
-
-    PRootExecutor adds support of following arguments in ``__call__``:
-
-      ``proot_options`` Options passed to *proot* binary after those
+      ``yrden_options`` Options passed to *yrden* binary after those
                         automatically generated.
     """
 
     def __init__(self, sandbox):
         """``sandbox`` has to be a sandbox name."""
         self.chroot = get_sandbox(sandbox)
-        self.proot = SandboxExecutor('proot-sandbox')
+        self.yrden = UnprotectedExecutor()
 
         self.options = []
         with self.chroot:
-            with self.proot:
-                self._proot_options()
+            with self.yrden:
+                self._yrden_options()
 
     def __enter__(self):
-        self.proot.__enter__()
+        self.yrden.__enter__()
         try:
             self.chroot.__enter__()
         except:
-            self.proot.__exit__(*sys.exc_info())
+            self.yrden.__exit__(*sys.exc_info())
             raise
 
         return self
@@ -801,7 +669,7 @@ class PRootExecutor(BaseExecutor):
         except:
             exc = sys.exc_info()
         finally:
-            self.proot.__exit__(*exc)
+            self.yrden.__exit__(*exc)
 
     def _bind(self, what, where=None, force=False):
         if where is None:
@@ -810,6 +678,11 @@ class PRootExecutor(BaseExecutor):
         where = path_join_abs(self.rpath, where)
         if not path.exists(what):
             raise RuntimeError("Binding not existing location")
+
+        where_global = path_join_abs(self.chroot.path, where)
+
+        if path.isdir(what) and not path.exists(where_global):
+            os.makedirs(where_global)
 
         if force or not path.exists(path_join_abs(self.chroot.path, where)):
             self.options += ['-b', '%s:%s' % (what, where)]
@@ -823,44 +696,25 @@ class PRootExecutor(BaseExecutor):
         """Sets new process initial pwd"""
         self.options += ['-w', path_join_abs(self.rpath, pwd)]
 
-    def _verbosity(self, level):
-        """-1: suppress, 0: warnings, 1: infos, 2: debug"""
-        self.options += ['-v', str(level)]
-
-    def _proot_options(self):
-        self._verbosity(-1)
+    def _yrden_options(self):
         self._chroot(self.chroot.path)
 
-        sh_target = path.join(os.sep, 'bin', 'sh')
-        if not path.exists(path_join_abs(self.chroot.path, sh_target)):
-            self._bind(path_join_abs(self.proot.path, sh_target), sh_target)
-        else:
-            # If /bin/sh exists, then bind unpatched version to it
-            sh_patched = elf_loader_patch._get_unpatched_name(
-                path.realpath(path_join_abs(self.chroot.path, sh_target))
-            )
-            if path.exists(sh_patched):
-                self._bind(sh_patched, sh_target, force=True)
-
-        self._bind(os.path.join(self.proot.path, 'lib'), 'lib')
-        self._bind(tempcwd(), 'tmp', force=True)
-
-        # Make absolute `outside paths' visible in sandbox
-        self._bind(self.chroot.path, force=True)
         self._bind(tempcwd(), force=True)
 
     def _execute(self, command, **kwargs):
         if kwargs['time_limit'] and kwargs['real_time_limit'] is None:
             kwargs['real_time_limit'] = 3 * kwargs['time_limit']
 
-        options = self.options + kwargs.pop('proot_options', [])
+        options = self.options + kwargs.pop('yrden_options', [])
         command = (
-            [path.join('proot', 'proot')]
+                # TODO
+            ['/usr/local/bin/yrden']
             + options
-            + [path.join(self.rpath, 'bin', 'sh'), '-c', command]
+            + ['--']
+            + command
         )
 
-        return self.proot._execute(command, **kwargs)
+        return self.yrden._execute(command, **kwargs)
 
     @property
     def rpath(self):

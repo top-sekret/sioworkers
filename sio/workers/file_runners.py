@@ -3,8 +3,7 @@ from sio.workers.executors import (
     UnprotectedExecutor,
     DetailedUnprotectedExecutor,
     Sio2JailExecutor,
-    SupervisedExecutor,
-    PRootExecutor,
+    YrdenExecutor,
 )
 from sio.workers.util import RegisteredSubclassesBase
 import os.path
@@ -93,9 +92,8 @@ class Executable(LanguageModeWrapper):
     handled_executors = (
         UnprotectedExecutor,
         DetailedUnprotectedExecutor,
-        PRootExecutor,
         Sio2JailExecutor,
-        SupervisedExecutor,
+        YrdenExecutor,
     )
 
     def __call__(self, file, args, **kwargs):
@@ -124,7 +122,7 @@ class Java(_BaseJava):
     """Wraps compiled java's ``.jar`` and takes care of memory limiting."""
 
     handled_exec_mode = 'java'
-    handled_executors = UnprotectedExecutor, DetailedUnprotectedExecutor, PRootExecutor
+    handled_executors = UnprotectedExecutor, DetailedUnprotectedExecutor, YrdenExecutor
 
     def __call__(self, file, args, entry_point=None, **kwargs):
         environ = kwargs.get('environ', {})
@@ -152,7 +150,7 @@ class Java(_BaseJava):
 
 class JavaSIO(_BaseJava):
     handled_exec_mode = 'java'
-    handled_executors = (SupervisedExecutor,)
+    handled_executors = (Sio2JailExecutor,)
 
     def __call__(self, file, args, **kwargs):
         return self.executor([file] + args, java_sandbox='compiler-java.1_8', **kwargs)

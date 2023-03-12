@@ -4,7 +4,7 @@ import os
 import re
 
 from sio.workers import ft
-from sio.workers.executors import UnprotectedExecutor, PRootExecutor
+from sio.workers.executors import UnprotectedExecutor, YrdenExecutor
 from sio.workers.util import tempcwd
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,8 @@ def _run_in_executor(environ, command, executor, **kwargs):
 def _run_ingen(environ, use_sandboxes=False):
     command = [tempcwd('ingen')]
     if use_sandboxes:
-        executor = PRootExecutor('null-sandbox')
+        executor = YrdenExecutor('empty')
+        executor._pwd(tempcwd())
     else:
         executor = UnprotectedExecutor()
     return _run_in_executor(environ, command, executor, ignore_errors=True)
@@ -72,7 +73,7 @@ def run(environ):
                             should be uploaded in filetracker
 
     ``use_sandboxes``: if this key equals ``True``, the program is executed
-                     in the PRootExecutor, otherwise the UnsafeExecutor is
+                     in the YrdenExecutor, otherwise the UnsafeExecutor is
                      used
 
     ``ingen_time_limit``: time limit in ms

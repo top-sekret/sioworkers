@@ -11,7 +11,7 @@ from sio.workers.executors import (
     UnprotectedExecutor,
     SandboxExecutor,
     ExecError,
-    PRootExecutor,
+    YrdenExecutor,
 )
 from sio.workers.util import tempcwd
 
@@ -58,8 +58,8 @@ def _run_checker(env, use_sandboxes=False):
             return _run_in_executor(
                 env,
                 command,
-                PRootExecutor('null-sandbox'),
-                ignore_return=True,
+                YrdenExecutor('empty'),
+                ignore_errors=True,
                 forward_stderr=with_stderr,
                 stderr=stderr,
             )
@@ -88,9 +88,9 @@ def _run_checker(env, use_sandboxes=False):
 
 
 def _run_compare(env):
-    e = SandboxExecutor('exec-sandbox')
+    e = SandboxExecutor('oicompare')
     renv = _run_in_executor(
-        env, [os.path.join('bin', 'compare'), 'hint', 'out'], e, ignore_errors=True
+        env, [os.path.join('bin', 'oicompare'), 'hint', 'out'], e, ignore_errors=True
     )
     return renv['stdout']
 

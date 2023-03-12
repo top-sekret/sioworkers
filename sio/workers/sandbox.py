@@ -1,11 +1,11 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import fcntl
+import os
 import os.path
 from hashlib import sha1
 from threading import Lock
 import time
-import tarfile
 import shutil
 import logging
 import weakref
@@ -14,16 +14,16 @@ import six.moves.urllib.parse
 import six.moves.urllib.request
 import email
 import errno
+import subprocess
 
 from sio.workers import ft, _original_cwd
-from sio.workers.elf_loader_patch import _patch_elf_loader
 from sio.workers.util import rmtree
 
 SANDBOXES_BASEDIR = os.environ.get(
     'SIO_SANDBOXES_BASEDIR', os.path.expanduser(os.path.join('~', '.sio-sandboxes'))
 )
 SANDBOXES_URL = os.environ.get(
-    'SIO_SANDBOXES_URL', 'http://downloads.sio2project.mimuw.edu.pl/sandboxes'
+    'SIO_SANDBOXES_URL', 'http://localhost:8001'
 )
 CHECK_INTERVAL = int(os.environ.get('SIO_SANDBOXES_CHECK_INTERVAL', 3600))
 
@@ -35,11 +35,11 @@ class SandboxError(Exception):
 
 
 def _filetracker_path(name):
-    return '/sandboxes/%s.tar.gz' % name
+    return '/sandboxes/%s.tar.zst' % name
 
 
 def _urllib_path(name):
-    return '%s.tar.gz' % name
+    return '%s.tar.zst' % name
 
 
 def _mkdir(name):
@@ -140,8 +140,6 @@ class Sandbox(object):
 
     _instances = weakref.WeakValueDictionary()
 
-    required_fixups = set(('elf_loader_patch',))
-
     @classmethod
     def _instance(cls, name):
         """This function is used by get_sandbox to get Sandbox instance."""
@@ -202,13 +200,6 @@ class Sandbox(object):
             return True
 
         try:
-            fixups_file = os.path.join(self.path, '.fixups_applied')
-            if not os.path.exists(fixups_file):
-                return True
-            current_fixups = set(open(fixups_file).read().split())
-            if not current_fixups.issuperset(self.required_fixups):
-                return True
-
             last_check_file = os.path.join(self.path, '.last_check')
             last_check = int(open(last_check_file, 'rb').read().decode())
             now_int = int(time.time())
@@ -254,33 +245,6 @@ class Sandbox(object):
             last_modified = int(email.utils.mktime_tz(last_modified))
         return last_modified
 
-    def _apply_fixups(self):
-        """Applies fixups for the sandbox.
-
-        We currently have only one fixup: `elf_loader_patch`. For more
-        information about it see elf_loader_patch.py file.
-        """
-        operative = {}
-        if 'elf_loader_patch' in self.required_fixups:
-            operative['elf_loader_patch'] = _patch_elf_loader(self.path)
-
-        fixups_file = os.path.join(self.path, '.fixups_applied')
-        open(fixups_file, 'w').write('\n'.join(self.required_fixups))
-
-        operatives_file = os.path.join(self.path, '.fixups_operative')
-        open(operatives_file, 'w').write(
-            '\n'.join([fixup for fixup in operative if operative[fixup]])
-        )
-
-    def has_fixup(self, name):
-        """This function check whether the sandbox has applied the
-        fixup with given name."""
-        if not hasattr(self, 'operative_fixups'):
-            operatives_file = os.path.join(self.path, '.fixups_operative')
-            self.operative_fixups = open(operatives_file).read().split('\n')
-
-        return name in self.operative_fixups
-
     def _get(self):
         """Downloads and installs the sandbox if it is not installed correctly
         or should be updated.
@@ -316,7 +280,7 @@ class Sandbox(object):
             if os.path.exists(path):
                 rmtree(path)
 
-            archive_path = path + '.tar.gz'
+            archive_path = path + '.tar.zst'
 
             try:
                 ft_path = _filetracker_path(name)
@@ -344,8 +308,8 @@ class Sandbox(object):
 
             logger.info(" extracting ...")
 
-            tar = tarfile.open(archive_path, 'r')
-            tar.extractall(SANDBOXES_BASEDIR)
+            _mkdir(SANDBOXES_BASEDIR)
+            subprocess.check_call(['tar', '--zstd', '-xf', archive_path, '-C', SANDBOXES_BASEDIR])
             os.unlink(archive_path)
 
             if not os.path.isdir(path):
@@ -353,8 +317,6 @@ class Sandbox(object):
                     "Downloaded sandbox archive "
                     "did not contain expected directory '%s'" % name
                 )
-
-            self._apply_fixups()
 
             hash_file = os.path.join(path, '.hash')
             open(hash_file, 'wb').write(six.ensure_binary(str(version)))

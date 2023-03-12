@@ -48,40 +48,25 @@ setup(
             'foo = sio.compilers.template:run',
 
             # Sandboxed compilers:
-            'gcc4_8_2_c99 = sio.compilers.gcc:run_c_gcc4_8_2_c99',
-            'g++4_8_2_cpp11 = sio.compilers.gcc:run_cpp_gcc4_8_2_cpp11',
-            'fpc2_6_2 = sio.compilers.fpc:run_pas_fpc2_6_2',
-            'java1_8 = sio.compilers.java:run_java1_8',
+            'gcc10_2_1_c17 = sio.compilers.gcc:run_c_gcc10_2_1_c17',
+            'g++10_2_1_cpp17 = sio.compilers.gcc:run_cpp_gcc10_2_1_cpp17',
+            'rustc1_63_0 = sio.compilers.rustc:run_rust_rustc1_63_0',
 
             # Non-sandboxed compilers
             'system-gcc = sio.compilers.system_gcc:run_gcc',
             'system-g++ = sio.compilers.system_gcc:run_gplusplus',
             'system-fpc = sio.compilers.system_fpc:run',
             'system-java = sio.compilers.system_java:run',
+            'system-rustc = sio.compilers.system_rustc:run',
 
             # Compiler for output only tasks solutions
             'output-only = sio.compilers.output:run',
 
-            ####################################
-            # Deprecated, should be removed after 01.01.2021
-            # Default extension compilers:
-            'default-c = sio.compilers.gcc:run_c_default',
-            'default-cc = sio.compilers.gcc:run_cpp_default',
-            'default-cpp = sio.compilers.gcc:run_cpp_default',
-            'default-pas = sio.compilers.fpc:run_pas_default',
-            'default-java = sio.compilers.java:run_java_default',
-
-            ####################################
-            # Deprecated, should be removed after 01.01.2021
-            # Sandboxed compilers:
-            'c = sio.compilers.gcc:run_c_default',
-
-            'cc = sio.compilers.gcc:run_cpp_default',
-            'cpp = sio.compilers.gcc:run_cpp_default',
-
-            'pas = sio.compilers.fpc:run_pas_default',
-
-            'java = sio.compilers.java:run_java_default',
+            'default-c = sio.compilers.gcc:run_c_gcc10_2_1_c17',
+            'default-cpp = sio.compilers.gcc:run_cpp_gcc10_2_1_cpp17',
+            'default-fpc = sio.compilers.system_fpc:run',
+            'default-java = sio.compilers.system_java:run',
+            'default-rust = sio.compilers.rustc:run_rust_rustc1_63_0',
 
             ####################################
             # Deprecated, should be removed after 01.01.2021
@@ -92,6 +77,8 @@ setup(
             'system-cpp = sio.compilers.system_gcc:run_gplusplus',
 
             'system-pas = sio.compilers.system_fpc:run',
+
+            'system-rs = sio.compilers.system_rustc:run',
             ####################################
         ],
         'console_scripts': [

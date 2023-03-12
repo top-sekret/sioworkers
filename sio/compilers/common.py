@@ -5,7 +5,7 @@ import logging
 from zipfile import ZipFile
 
 from sio.workers import ft
-from sio.workers.executors import UnprotectedExecutor, PRootExecutor
+from sio.workers.executors import UnprotectedExecutor, YrdenExecutor
 from sio.workers.util import replace_invalid_UTF, tempcwd
 import six
 
@@ -66,7 +66,8 @@ class Compiler(object):
         if self.sandbox is None:
             self.executor = UnprotectedExecutor()
         else:
-            self.executor = PRootExecutor('compiler-' + self.sandbox)
+            self.executor = YrdenExecutor('compiler-' + self.sandbox)
+            self.executor._pwd(tempcwd())
 
     def compile(self, environ):
         """
