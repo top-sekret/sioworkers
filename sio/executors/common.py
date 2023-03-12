@@ -20,21 +20,19 @@ def _populate_environ(renv, environ):
         environ[key] = renv.get(key, '')
 
 
-@decode_fields(['result_string'])
-def run(environ, executor, use_sandboxes=True):
-    """
-    Common code for executors.
+def _run_core(environ, file_executor, input_name, output_name, exe_filename, environ_prefix, use_sandboxes):
+    with file_executor as fe:
+        with open(input_name, 'rb') as inf:
+            # Open output file in append mode to allow appending
+            # only to the end of the output file. Otherwise,
+            # a contestant's program could modify the middle of the file.
+            with open(output_name, 'ab') as outf:
+                return fe(exe_filename, [],
+                          stdin=inf, stdout=outf, ignore_errors=True,
+                          environ=environ, environ_prefix=environ_prefix)
 
-    :param: environ Recipe to pass to `filetracker` and `sio.workers.executors`
-                    For all supported options, see the global documentation for
-                    `sio.workers.executors` and prefix them with ``exec_``.
-    :param: executor Executor instance used for executing commands.
-    :param: use_sandboxes Enables safe checking output correctness.
-                       See `sio.executors.checkers`. True by default.
-    """
 
-    logger.debug("running exec job %s %s", environ['job_type'], environ.get('task_id', ''))
-
+def _run(environ, executor, use_sandboxes):
     input_name = tempcwd('in')
 
     file_executor = get_file_runner(executor, environ)
@@ -60,28 +58,37 @@ def run(environ, executor, use_sandboxes=True):
             except Exception as e:
                 raise Exception("Failed to open archive: " + six.text_type(e))
 
-        with file_executor as fe:
-            with open(input_name, 'rb') as inf:
-                # Open output file in append mode to allow appending
-                # only to the end of the output file. Otherwise,
-                # a contestant's program could modify the middle of the file.
-                with open(tempcwd('out'), 'ab') as outf:
-                    renv = fe(tempcwd(exe_filename), [],
-                              stdin=inf, stdout=outf, ignore_errors=True,
-                              environ=environ, environ_prefix='exec_')
-
-        _populate_environ(renv, environ)
-
-        if renv['result_code'] == 'OK' and environ.get('check_output'):
-            environ = checker.run(environ, use_sandboxes=use_sandboxes)
-
-        for key in ('result_code', 'result_string'):
-            environ[key] = replace_invalid_UTF(environ[key])
-
-        if 'out_file' in environ:
-            ft.upload(environ, 'out_file', tempcwd('out'),
-                to_remote_store=environ.get('upload_out', False))
+        return _run_core(environ, file_executor, input_name, tempcwd('out'), tempcwd(exe_filename), 'exec_', use_sandboxes)
     finally:
         rmtree(zipdir)
+
+
+@decode_fields(['result_string'])
+def run(environ, executor, use_sandboxes=True):
+    """
+    Common code for executors.
+
+    :param: environ Recipe to pass to `filetracker` and `sio.workers.executors`
+                    For all supported options, see the global documentation for
+                    `sio.workers.executors` and prefix them with ``exec_``.
+    :param: executor Executor instance used for executing commands.
+    :param: use_sandboxes Enables safe checking output correctness.
+                       See `sio.executors.checkers`. True by default.
+    """
+
+    logger.debug("running exec job %s %s", environ['job_type'], environ.get('task_id', ''))
+
+    renv = _run(environ, executor, use_sandboxes)
+    _populate_environ(renv, environ)
+
+    if renv['result_code'] == 'OK' and environ.get('check_output'):
+        environ = checker.run(environ, use_sandboxes=use_sandboxes)
+
+    for key in ('result_code', 'result_string'):
+        environ[key] = replace_invalid_UTF(environ[key])
+
+    if 'out_file' in environ:
+        ft.upload(environ, 'out_file', tempcwd('out'),
+            to_remote_store=environ.get('upload_out', False))
 
     return environ

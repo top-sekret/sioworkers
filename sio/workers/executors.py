@@ -54,11 +54,22 @@ def ulimit(command, mem_limit=None, time_limit=None, **kwargs):
 
     return command
 
-def execute_command(command, env=None, split_lines=False, stdin=None,
-                    stdout=None, stderr=None, forward_stderr=False,
-                    capture_output=False, output_limit=None,
-                    real_time_limit=None,
-                    ignore_errors=False, extra_ignore_errors=(), **kwargs):
+def execute_command(
+    command,
+    env=None,
+    split_lines=False,
+    stdin=None,
+    stdout=None,
+    stderr=None,
+    forward_stderr=False,
+    capture_output=False,
+    output_limit=None,
+    real_time_limit=None,
+    ignore_errors=False,
+    extra_ignore_errors=(),
+    pass_fds=(),
+    **kwargs
+):
     """Utility function to run arbitrary command.
        ``stdin``
          Could be either file opened with ``open(fname, 'r')``
@@ -89,6 +100,8 @@ def execute_command(command, env=None, split_lines=False, stdin=None,
 
        ``stdout``
          Only when ``capture_output=True``: output of the command
+       ``pass_fds``
+         Extra file descriptors to pass to the command.
     """
     # Using temporary file is way faster than using subproces.PIPE
     # and it prevents deadlocks.
@@ -120,7 +133,8 @@ def execute_command(command, env=None, split_lines=False, stdin=None,
                          universal_newlines=True,
                          env=env,
                          cwd=tempcwd(),
-                         preexec_fn=os.setpgrp)
+                         preexec_fn=os.setpgrp,
+                         pass_fds=pass_fds)
 
     logger.debug('Popened')
 
@@ -689,7 +703,7 @@ class Sio2JailExecutor(CompoundSandboxExecutor, _SIOSupervisedExecutor):
         else:
             options += ['--instruction-count-limit',
                 str(kwargs['time_limit'] *
-                self.INSTRUCTIONS_PER_VIRTUAL_SECOND / 1000)]
+                self.INSTRUCTIONS_PER_VIRTUAL_SECOND // 1000)]
 
             if kwargs['real_time_limit']:
                 options += ['--rtimelimit',
