@@ -47,9 +47,9 @@ setup(
 
     install_requires=final_requirements,
 
-    setup_requires = [
-        'pytest-runner',
-    ],
+#    setup_requires = [
+#        'pytest-runner',
+#    ],
 
     tests_require = [
         'pytest',

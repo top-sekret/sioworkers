@@ -41,7 +41,7 @@ def _patch_elf_loader(path):
     blacklist = set()
     if os.path.exists(blacklist_file):
         blacklist = set([os.path.join(path, f.strip(os.path.sep))
-          for f in open(blacklist_file, 'rb').read().strip().split('\n')])
+          for f in open(blacklist_file, 'rb').read().decode('utf-8').strip().split('\n')])
 
     logger.info("Patching sandbox: %s", path)
     logger.info("Patcher blacklist: %s", blacklist)

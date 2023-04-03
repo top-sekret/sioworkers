@@ -13,6 +13,18 @@ from enum import Enum
 State = Enum('State', 'connected sent_hello established')
 
 
+# Fix because py2 sucks ass and sioworkers does even more
+def _recode(value):
+    if type(value) is dict:
+        return {_recode(key): _recode(value) for key, value in value.items()}
+    elif type(value) is list:
+        return [_recode(item) for item in value]
+    elif type(value) is bytes:
+        return value.decode('utf-8')
+    else:
+        return value
+
+
 class TimeoutError(Exception):
     pass
 
@@ -162,7 +174,7 @@ class WorkerRPC(NetstringReceiver):
 
     def sendMsg(self, msg_type, **kwargs):
         kwargs['type'] = msg_type
-        self.sendString(json.dumps(kwargs).encode('utf-8'))
+        self.sendString(json.dumps(_recode(kwargs)).encode('utf-8'))
 
     def call(self, cmd, *args, **kwargs):
         """Call a remote function. Raises RemoteError if something goes wrong

@@ -54,7 +54,8 @@ if ! [ -e supervisord.conf ] || \
 fi
 
 # Activate venv:
-source ../../venv/bin/activate
+#source ../../venv/bin/activate
+source ../../venv3/bin/activate
 
 # Set all config variables.
 source supervisord-conf-vars.conf

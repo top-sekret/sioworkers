@@ -198,7 +198,7 @@ class Sandbox(object):
             if not expected_hash:
                 raise SandboxError("Server did not return hash for "
                         "the sandbox image '%s'" % self.name)
-            expected_hash = str(expected_hash)
+            expected_hash = str(expected_hash).encode('utf-8')
 
             hash_file = os.path.join(self.path, '.hash')
             if not os.path.exists(hash_file):
@@ -331,7 +331,7 @@ class Sandbox(object):
             self._apply_fixups()
 
             hash_file = os.path.join(path, '.hash')
-            open(hash_file, 'wb').write(str(version))
+            open(hash_file, 'wb').write(str(version).encode('utf-8'))
 
             self._mark_checked()
             logger.info(" done.")

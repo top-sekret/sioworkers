@@ -21,7 +21,7 @@ ft_clients = dict()
 
 
 def get_url_hash(filetracker_url):
-    return hashlib.md5(filetracker_url).hexdigest()
+    return hashlib.md5(filetracker_url.encode('utf-8')).hexdigest()
 
 
 def get_cache_dir(filetracker_url):
