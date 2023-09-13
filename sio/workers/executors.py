@@ -533,6 +533,11 @@ class _SIOSupervisedExecutor(SandboxExecutor):
                 if key:
                     renv[key] = int(status_line[num])
 
+            try:
+                status_line[0] = status_line[0].decode('UTF-8')
+            except (UnicodeDecodeError, AttributeError):
+                pass
+
             if status_line[0] in self._oiaug_codes:
                 result_code = status_line[0]
                 exit_code = renv['result_code']
@@ -673,7 +678,7 @@ class Sio2JailExecutor(CompoundSandboxExecutor, _SIOSupervisedExecutor):
     REAL_TIME_LIMIT_MULTIPLIER = 16
     REAL_TIME_LIMIT_ADDEND = 30000  # (in ms)
 
-    tool_sandbox = 'sio2jail_exec-sandbox-1.4.2'
+    tool_sandbox = 'sio2jail_exec-sandbox-1.4.4'
     get_sandbox_extra_args = {'flavor': 'pristine'}
 
     def __init__(self, sandbox=None, measure_real_time=False):
