@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_COMPILER_TIME_LIMIT = 30000  # in ms
 DEFAULT_COMPILER_MEM_LIMIT = 512 * 2**10  # in KiB
-DEFAULT_COMPILER_OUTPUT_LIMIT = 5 * 2**10  # in KiB
+DEFAULT_COMPILER_OUTPUT_LIMIT = 10 * 2**10  # in KiB
 
 
 def _lang_option(environ, key, lang):
