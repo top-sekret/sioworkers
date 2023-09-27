@@ -195,7 +195,7 @@ class PythonCompiler(Compiler):
 
     @classmethod
     def python_3_11_numpy_amd64(cls):
-        obj = cls('python.3.11.2-numpy_amd64')
+        obj = cls('python3.11.2-numpy_amd64')
         obj.python_executable_path = '/usr/bin/python3.11'
         return obj
 
