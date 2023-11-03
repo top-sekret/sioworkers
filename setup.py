@@ -87,6 +87,7 @@ setup(
             # Sandboxed compilers:
             'c = sio.compilers.gcc:run_c_default',
             'gcc4_8_2_c99 = sio.compilers.gcc:run_c_gcc4_8_2_c99',
+            'gcc12_2_0_c17 = sio.compilers.gcc:run_c_gcc12_2_0_c17',
 
             'cc = sio.compilers.gcc:run_cpp_default',
             'cpp = sio.compilers.gcc:run_cpp_default',
