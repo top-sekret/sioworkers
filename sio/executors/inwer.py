@@ -29,6 +29,8 @@ def _run_inwer(environ, use_sandboxes=False):
     else:
         executor = DetailedUnprotectedExecutor()
     command = [executor.rcwd('inwer')]
+    if 'in_file_name' in environ:
+        command.append(environ['in_file_name'])
     return _run_in_executor(environ, command, executor, ignore_errors=True)
 
 def run(environ):
@@ -39,6 +41,9 @@ def run(environ):
        ``exe_file``: the filetracker path to the program
 
        ``in_file``: the file redirected to the program's stdin
+
+       ``in_file_name``: the name of the input file. It's passed to inwer as
+                        the second argument.
 
        ``use_sandboxes``: if this key equals ``True``, the program is executed
                         in the SupervisedExecutor, otherwise the UnsafeExecutor

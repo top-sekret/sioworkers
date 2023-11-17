@@ -374,12 +374,13 @@ def _make_inwer_cases():
 
     for use_sandboxes in sandbox_options:
         yield '/inwer.c', '/inwer_ok', use_sandboxes, check_inwer_ok
-        yield '/inwer.c', '/inwer_wrong', use_sandboxes, \
-                check_inwer_wrong
-        yield '/inwer_faulty.c', '/inwer_ok', use_sandboxes, \
-                check_inwer_faulty
-        yield '/inwer_big_output.c', '/inwer_ok', use_sandboxes, \
-                check_inwer_big_output(use_sandboxes)
+        yield '/inwer.c', '/inwer_wrong', use_sandboxes, check_inwer_wrong
+        yield '/inwer_faulty.c', '/inwer_ok', use_sandboxes, check_inwer_faulty
+        yield '/inwer_big_output.c', '/inwer_ok', use_sandboxes, check_inwer_big_output(
+            use_sandboxes
+        )
+        yield '/inwer_argument.c', '/inwer_ok', use_sandboxes, check_inwer_ok
+        yield '/inwer_argument.c', '/inwer_wrong', use_sandboxes, check_inwer_wrong
 
 
 @pytest.mark.parametrize("inwer,in_file,use_sandboxes,callback",
@@ -391,6 +392,7 @@ def test_inwer(inwer, in_file, use_sandboxes, callback):
     with TemporaryCwd():
         env = {
             'in_file': in_file,
+            'in_file_name': os.path.basename(in_file),
             'exe_file': inwer_bin,
             'use_sandboxes': use_sandboxes,
             'inwer_output_limit': SMALL_OUTPUT_LIMIT,
@@ -749,4 +751,3 @@ def test_execute():
         eq_(rc, 0)
         rc, out = execute(['ls', tempcwd()])
         in_(b'spam', out)
-
