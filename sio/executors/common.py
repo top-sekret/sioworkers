@@ -45,7 +45,7 @@ def _run(environ, executor, use_sandboxes):
     # HAIL copy-paste
     tmp_environ = environ.copy()
 
-    for file_name, file_path in environ.get('extra_execution_files', {}).iteritems():
+    for file_name, file_path in six.iteritems(environ.get('extra_execution_files', {})):
         tmp_environ['extra_execution_file'] = file_path
         ft.download(tmp_environ, 'extra_execution_file',
                     dest=file_name,
