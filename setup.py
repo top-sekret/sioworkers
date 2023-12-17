@@ -108,6 +108,7 @@ setup(
             'python_3_7 = sio.compilers.python:run_python3_7',
             'python_3_7_numpy = sio.compilers.python:run_python3_7_numpy',
             'python_3_7_numpy_amd64 = sio.compilers.python:run_python3_7_numpy_amd64',
+            'python_3_9_numpy = sio.compilers.python:run_python3_9_numpy_amd64',
             'python_3_9_numpy_amd64 = sio.compilers.python:run_python3_9_numpy_amd64',
             'python_3_11_numpy_amd64 = sio.compilers.python:run_python3_11_numpy_amd64',
             'py = sio.compilers.python:run_python_default',
