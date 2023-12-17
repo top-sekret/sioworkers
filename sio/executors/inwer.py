@@ -4,7 +4,7 @@ import os
 
 from sio.workers import ft
 from sio.workers.executors import DetailedUnprotectedExecutor, \
-        SupervisedExecutor
+        PRootExecutor
 from sio.workers.util import tempcwd
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ def _run_in_executor(environ, command, executor, **kwargs):
 
 def _run_inwer(environ, use_sandboxes=False):
     if use_sandboxes:
-        executor = SupervisedExecutor()
+        executor = PRootExecutor('null-sandbox')
     else:
         executor = DetailedUnprotectedExecutor()
     command = [executor.rcwd('inwer')]
@@ -79,6 +79,8 @@ def run(environ):
     os.chmod(tempcwd('inwer'), 0o500)
 
     renv = _run_inwer(environ, use_sandboxes)
+    if renv['return_code'] == 0:
+        renv['result_code'] = "OK"
     if renv['result_code'] != "OK":
         logger.error("Inwer failed!\nEnviron dump: %s\nExecution environ: %s",
                 environ, renv)
