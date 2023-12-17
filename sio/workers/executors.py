@@ -13,7 +13,7 @@ from os import path
 from sio.workers import util, elf_loader_patch
 from sio.workers.sandbox import get_sandbox
 from sio.workers.util import ceil_ms2s, decode_fields, ms2s, s2ms, path_join_abs, \
-    null_ctx_manager, tempcwd
+    null_ctx_manager, tempcwd, is_exe
 import six
 from six.moves import map
 
