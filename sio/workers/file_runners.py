@@ -153,7 +153,7 @@ class Python3(LanguageModeWrapper):
 
             cmd = [os.path.join(inner_dir, alt_exe)]
 
-        self._download_extra_execution_files(kwargs.get('environ', os.environ.copy()), inner_dir)
+        self._download_extra_execution_files(kwargs.get('environ', os.environ.copy()), prog_dir)
         return self.executor(cmd + args, **kwargs)
 
     def preferred_filename(self):
