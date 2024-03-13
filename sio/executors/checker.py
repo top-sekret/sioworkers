@@ -88,11 +88,11 @@ def _run_checker(env, use_sandboxes=False):
 
 
 def _run_compare(env):
-    e = SandboxExecutor('oicompare')
+    e = SandboxExecutor('oicompare-0.1.0')
     renv = _run_in_executor(
-        env, [os.path.join('bin', 'oicompare'), 'hint', 'out'], e, ignore_errors=True
+        env, ['usr/bin/oicompare', 'hint', 'out', 'polish_abbreviated'], e, ignore_errors=True
     )
-    return renv['stdout']
+    return ['WA' if renv['return_code'] else 'OK', renv['stdout'][0]]
 
 
 def _limit_length(s):

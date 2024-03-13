@@ -494,7 +494,7 @@ class SandboxExecutor(UnprotectedExecutor):
         return super(SandboxExecutor, self)._execute(command, **kwargs)
 
 
-class Sio2JailExecutor(UnprotectedExecutor):
+class Sio2JailExecutor(SandboxExecutor):
     """Runs program in controlled environment while counting CPU instructions
     using Sio2Jail.
 
@@ -518,15 +518,14 @@ class Sio2JailExecutor(UnprotectedExecutor):
     REAL_TIME_LIMIT_ADDEND = 1000  # (in ms)
 
     def __init__(self, sandbox='empty-exe'):
-        super(Sio2JailExecutor, self).__init__()
-        self.sandbox = get_sandbox(sandbox)
-        with self.sandbox:
+        super(Sio2JailExecutor, self).__init__('sio2jail_exec-sandbox-1.4.4')
+        self.inner_sandbox = get_sandbox(sandbox)
+        with self.inner_sandbox:
             pass
 
     def _execute(self, command, **kwargs):
         options = []
-        # TODO
-        options += ['-b', self.sandbox.path + ':/:ro']
+        options += ['-b', self.inner_sandbox.path + ':/:ro']
         options += [
             '--memory-limit',
             str(kwargs['mem_limit'] or self.DEFAULT_MEMORY_LIMIT) + 'K',
@@ -552,19 +551,14 @@ class Sio2JailExecutor(UnprotectedExecutor):
             '--output-limit',
             str(kwargs['output_limit'] or self.DEFAULT_OUTPUT_LIMIT) + 'K',
         ]
-        # TODO
-        #options += [
-        #    '-l', '/tmp/sio2jaillog' + str(int(datetime.datetime.now().timestamp() * 1000))
-        #]
         options += ['-s']
 
         renv = {}
         try:
             result_file = tempfile.NamedTemporaryFile(dir=tempcwd())
 
-            # TODO
             options += ['-f', str(result_file.fileno())]
-            command = ['/usr/local/bin/sio2jail'] + options + ['--'] + command
+            command = [os.path.join(self.rpath, 'sio2jail')] + options + ['--'] + command
 
             kwargs['ignore_errors'] = True
             kwargs['pass_fds'] = (result_file.fileno(),)
@@ -573,7 +567,7 @@ class Sio2JailExecutor(UnprotectedExecutor):
             if renv['return_code'] != 0:
                 result_file.seek(0)
                 raise ExecError(
-                    'Sio2Jail returned code %s, stderr: %s'
+                    'Sio2Jail returned code %s, output: %s'
                     % (renv['return_code'], six.ensure_text(result_file.read(10240)))
                 )
 
@@ -644,7 +638,7 @@ class YrdenExecutor(BaseExecutor):
     def __init__(self, sandbox):
         """``sandbox`` has to be a sandbox name."""
         self.chroot = get_sandbox(sandbox)
-        self.yrden = UnprotectedExecutor()
+        self.yrden = SandboxExecutor('yrden-0.1.0')
 
         self.options = []
         with self.chroot:
@@ -707,8 +701,7 @@ class YrdenExecutor(BaseExecutor):
 
         options = self.options + kwargs.pop('yrden_options', [])
         command = (
-                # TODO
-            ['/usr/local/bin/yrden']
+            ['usr/bin/yrden']
             + options
             + ['--']
             + command

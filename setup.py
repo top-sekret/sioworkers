@@ -48,38 +48,14 @@ setup(
             'foo = sio.compilers.template:run',
 
             # Sandboxed compilers:
-            'gcc10_2_1_c17 = sio.compilers.gcc:run_c_gcc10_2_1_c17',
-            'g++10_2_1_cpp17 = sio.compilers.gcc:run_cpp_gcc10_2_1_cpp17',
-            'rustc1_63_0 = sio.compilers.rustc:run_rust_rustc1_63_0',
-
-            # Non-sandboxed compilers
-            'system-gcc = sio.compilers.system_gcc:run_gcc',
-            'system-g++ = sio.compilers.system_gcc:run_gplusplus',
-            'system-fpc = sio.compilers.system_fpc:run',
-            'system-java = sio.compilers.system_java:run',
-            'system-rustc = sio.compilers.system_rustc:run',
+            'gcc12_2_0_c17 = sio.compilers.gcc:run_c_gcc12_2_0_c17',
+            'g++12_2_0_cpp20 = sio.compilers.gcc:run_cpp_gcc12_2_0_cpp20',
 
             # Compiler for output only tasks solutions
             'output-only = sio.compilers.output:run',
 
-            'default-c = sio.compilers.gcc:run_c_gcc10_2_1_c17',
-            'default-cpp = sio.compilers.gcc:run_cpp_gcc10_2_1_cpp17',
-            'default-fpc = sio.compilers.system_fpc:run',
-            'default-java = sio.compilers.system_java:run',
-            'default-rust = sio.compilers.rustc:run_rust_rustc1_63_0',
-
-            ####################################
-            # Deprecated, should be removed after 01.01.2021
-            # Non-sandboxed compilers
-            'system-c = sio.compilers.system_gcc:run_gcc',
-
-            'system-cc = sio.compilers.system_gcc:run_gplusplus',
-            'system-cpp = sio.compilers.system_gcc:run_gplusplus',
-
-            'system-pas = sio.compilers.system_fpc:run',
-
-            'system-rs = sio.compilers.system_rustc:run',
-            ####################################
+            'default-c = sio.compilers.gcc:run_c_gcc12_2_0_c17',
+            'default-cpp = sio.compilers.gcc:run_cpp_gcc12_2_0_cpp20',
         ],
         'console_scripts': [
             'sio-batch = sio.workers.runner:main',
