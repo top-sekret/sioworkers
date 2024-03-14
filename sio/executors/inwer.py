@@ -3,7 +3,7 @@ import logging
 import os
 
 from sio.workers import ft
-from sio.workers.executors import DetailedUnprotectedExecutor, Sio2JailExecutor
+from sio.workers.executors import DetailedUnprotectedExecutor, YrdenExecutor
 from sio.workers.util import tempcwd
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ def _run_inwer(environ, use_sandboxes=False):
     if 'in_file_name' in environ:
         command.append(environ['in_file_name'])
     if use_sandboxes:
-        executor = Sio2JailExecutor('empty-exe')
+        executor = YrdenExecutor('empty')
     else:
         executor = DetailedUnprotectedExecutor()
     return _run_in_executor(environ, command, executor, ignore_errors=True)
@@ -80,12 +80,12 @@ def run(environ):
     """
 
     use_sandboxes = environ.get('use_sandboxes', False)
-    ft.download(environ, 'exe_file', 'inwer', add_to_cache=True)
-    ft.download(environ, 'in_file', 'in', add_to_cache=True)
+    ft.download(environ, 'exe_file', 'inwer', skip_if_exists=True, add_to_cache=True)
+    ft.download(environ, 'in_file', 'in', skip_if_exists=True, add_to_cache=True)
     os.chmod(tempcwd('inwer'), 0o500)
 
     renv = _run_inwer(environ, use_sandboxes)
-    if renv['result_code'] != "OK":
+    if renv['return_code'] != 0:
         logger.error(
             "Inwer failed!\nEnviron dump: %s\nExecution environ: %s", environ, renv
         )
