@@ -35,35 +35,35 @@ class PythonCompiler(Compiler):
         cxxflags = ['-std=c++11', '-O3', '-fPIC']
         includeflag = ['-I/usr/include/python3.4']
 
-        swig = '/usr/bin/swig2.0'
+        swig = '/usr/bin/swig4.0'
         gxx = '/usr/bin/g++'
 
         stdout = ''
 
         swigcmd = [swig, '-c++', '-python', swig_in]
         renv = self._execute(executor, swigcmd)
-        stdout += renv['stdout']
+        stdout += renv['stdout'].decode('utf-8')
         renv['stdout'] = stdout
         if renv['return_code']:
             return renv
 
         compile_lib = [gxx] + cxxflags + ['-c', lib_cxx]
         renv = self._execute(executor, compile_lib)
-        stdout += renv['stdout']
+        stdout += renv['stdout'].decode('utf-8')
         renv['stdout'] = stdout
         if renv['return_code']:
             return renv
 
         compile_swig = [gxx] + cxxflags + includeflag + ['-c', swig_cxx]
         renv = self._execute(executor, compile_swig)
-        stdout += renv['stdout']
+        stdout += renv['stdout'].decode('utf-8')
         renv['stdout'] = stdout
         if renv['return_code']:
             return renv
 
         link = [gxx, '-shared', lib_o, swig_o, '-o', res_so]
         renv = self._execute(executor, link)
-        stdout += renv['stdout']
+        stdout += renv['stdout'].decode('utf-8')
         renv['stdout'] = stdout
         if renv['return_code']:
             return renv
