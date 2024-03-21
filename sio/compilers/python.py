@@ -32,8 +32,8 @@ class PythonCompiler(Compiler):
         res_py = basename + '.py'
         res_so = '_%s.so' % basename
 
-        cxxflags = ['-std=c++11', '-O3', '-fPIC']
-        includeflag = ['-I/usr/include/python3.4']
+        cxxflags = ['-std=c++20', '-O3', '-fPIC']
+        includeflag = ['-I/usr/include/python3.11']
 
         swig = '/usr/bin/swig4.0'
         gxx = '/usr/bin/g++'
@@ -47,7 +47,7 @@ class PythonCompiler(Compiler):
         if renv['return_code']:
             return renv
 
-        compile_lib = [gxx] + cxxflags + ['-c', lib_cxx]
+        compile_lib = [gxx] + cxxflags + includeflag + ['-c', lib_cxx]
         renv = self._execute(executor, compile_lib)
         stdout += renv['stdout'].decode('utf-8')
         renv['stdout'] = stdout
