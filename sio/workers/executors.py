@@ -141,6 +141,9 @@ def execute_command(
 
     logger.debug('Popened')
 
+    for fd in fds_to_close:
+        os.close(fd)
+
     kill_timer = None
     if real_time_limit:
         def oot_killer():
