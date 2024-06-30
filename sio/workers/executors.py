@@ -68,6 +68,8 @@ def execute_command(
     ignore_errors=False,
     extra_ignore_errors=(),
     pass_fds=(),
+    cwd=None,
+    fds_to_close=(),
     **kwargs
 ):
     """Utility function to run arbitrary command.
@@ -114,6 +116,7 @@ def execute_command(
     devnull = open(os.devnull, 'wb')
     stdout = stdout or devnull
     stderr = stderr or devnull
+    cwd = cwd or tempcwd()
 
     ret_env = {}
     if env is not None:
@@ -132,7 +135,7 @@ def execute_command(
                          close_fds=True,
                          universal_newlines=True,
                          env=env,
-                         cwd=tempcwd(),
+                         cwd=cwd,
                          preexec_fn=os.setpgrp,
                          pass_fds=pass_fds)
 
@@ -377,8 +380,9 @@ class DetailedUnprotectedExecutor(UnprotectedExecutor):
             renv['result_string'] = 'ok'
             renv['result_code'] = 'OK'
         elif renv['return_code'] > 128:  # os.WIFSIGNALED(1) returns True
+            renv['exit_signal'] = os.WTERMSIG(renv['return_code'])
             renv['result_string'] = 'program exited due to signal %d' \
-                                    % os.WTERMSIG(renv['return_code'])
+                                    % renv['exit_signal']
             renv['result_code'] = 'RE'
         else:
             renv['result_string'] = 'program exited with code %d' \
@@ -557,6 +561,10 @@ class _SIOSupervisedExecutor(SandboxExecutor):
 
         renv['result_code'] = result_code
         renv['return_code'] = exit_code
+
+        renv['exit_signal'] = int(
+            renv['result_string'][len('process exited due to signal '):]
+        )
 
         if result_code != 'OK' and not ignore_errors and not \
                 (result_code == 'RE' and renv['return_code'] in \

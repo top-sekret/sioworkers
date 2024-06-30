@@ -12,6 +12,24 @@ import six
 
 logger = logging.getLogger(__name__)
 
+
+def _extract_input_if_zipfile(input_name, zipdir):
+    if is_zipfile(input_name):
+        try:
+            # If not a zip file, will pass it directly to exe
+            with ZipFile(tempcwd('in'), 'r') as f:
+                if len(f.namelist()) != 1:
+                    raise Exception("Archive should have only one file.")
+
+                f.extract(f.namelist()[0], zipdir)
+                input_name = os.path.join(zipdir, f.namelist()[0])
+        # zipfile throws some undocumented exceptions
+        except Exception as e:
+            raise Exception("Failed to open archive: " + six.text_type(e))
+
+    return input_name
+
+
 def _populate_environ(renv, environ):
     """Takes interesting fields from renv into environ"""
     for key in ('time_used', 'mem_used', 'num_syscalls'):
@@ -54,19 +72,7 @@ def _run(environ, executor, use_sandboxes):
     zipdir = tempcwd('in_dir')
     os.mkdir(zipdir)
     try:
-        if is_zipfile(input_name):
-            try:
-                # If not a zip file, will pass it directly to exe
-                with ZipFile(tempcwd('in'), 'r') as f:
-                    if len(f.namelist()) != 1:
-                        raise Exception("Archive should have only one file.")
-
-                    f.extract(f.namelist()[0], zipdir)
-                    input_name = os.path.join(zipdir, f.namelist()[0])
-            # zipfile throws some undocumented exceptions
-            except Exception as e:
-                raise Exception("Failed to open archive: " + six.text_type(e))
-
+        input_name = _extract_input_if_zipfile(input_name, zipdir)
         return _run_core(environ, file_executor, input_name, tempcwd('out'), tempcwd(exe_filename), 'exec_', use_sandboxes)
     finally:
         rmtree(zipdir)
