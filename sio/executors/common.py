@@ -3,6 +3,7 @@ import os
 import logging
 from shutil import rmtree
 from zipfile import ZipFile, is_zipfile
+from sio.archive_utils import Archive, UnrecognizedArchiveFormat, UnsafeArchive
 from sio.workers import ft
 from sio.workers.util import decode_fields, replace_invalid_UTF, tempcwd
 from sio.workers.file_runners import get_file_runner
@@ -93,7 +94,11 @@ def run(environ, executor, use_sandboxes=True):
 
     logger.debug("running exec job %s %s", environ['job_type'], environ.get('task_id', ''))
 
-    renv = _run(environ, executor, use_sandboxes)
+    if environ.get('exec_info', {}).get('mode') == 'output-only':
+        renv = _fake_run_as_exe_is_output_file(environ)
+    else:
+        renv = _run(environ, executor, use_sandboxes)
+
     _populate_environ(renv, environ)
 
     if renv['result_code'] == 'OK' and environ.get('check_output'):
@@ -107,3 +112,34 @@ def run(environ, executor, use_sandboxes=True):
             to_remote_store=environ.get('upload_out', False))
 
     return environ
+
+
+def _fake_run_as_exe_is_output_file(environ):
+    try:
+        ft.download(environ, 'exe_file', tempcwd('outs_archive'))
+        archive = Archive.get(tempcwd('outs_archive'))
+        problem_short_name = environ['problem_short_name']
+        test_name = f'{problem_short_name}{environ["name"]}.out'
+        logger.info('Archive with outs provided')
+        if test_name in archive.filenames():
+            archive.extract(test_name, to_path=tempcwd())
+            os.rename(os.path.join(tempcwd(), test_name), tempcwd('out'))
+        else:
+            logger.info(f'Output {test_name} not found in archive')
+            return {
+                'result_code': 'WA',
+                'result_string': 'output not provided',
+            }
+    except UnrecognizedArchiveFormat as e:
+        # regular text file
+        logger.info('Text out provided')
+        # later code expects 'out' file to be present after compilation
+        ft.download(environ, 'exe_file', tempcwd('out'))
+    except UnsafeArchive as e:
+        logger.warning(six.text_type(e))
+    return {
+        # 'result_code' is left by executor, as executor is not used
+        # this variable has to be set manually
+        'result_code': 'OK',
+        'result_string': 'ok',
+    }
