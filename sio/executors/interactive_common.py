@@ -27,6 +27,19 @@ class InteractorError(Exception):
         )
 
 
+class Pipes:
+    r_interactor = None
+    w_interactor = None
+    r_solution = None
+    w_solution = None
+
+    def __init__(self, r_interactor, w_interactor, r_solution, w_solution):
+        self.r_interactor = r_interactor
+        self.w_interactor = w_interactor
+        self.r_solution = r_solution
+        self.w_solution = w_solution
+
+
 def _limit_length(s):
     if len(s) > RESULT_STRING_LENGTH_LIMIT:
         suffix = b'[...]'
@@ -97,6 +110,8 @@ def _fill_result(env, renv, irenv, interactor_out):
 def _run(environ, executor, use_sandboxes):
     input_name = tempcwd('in')
 
+    num_processes = environ.get('num_processes', 1)
+
     file_executor = get_file_runner(executor, environ)
     interactor_executor = DetailedUnprotectedExecutor()
     exe_filename = file_executor.preferred_filename()
@@ -112,13 +127,19 @@ def _run(environ, executor, use_sandboxes):
     os.mkdir(zipdir)
     try:
         input_name = _extract_input_if_zipfile(input_name, zipdir)
+        pipes = []
 
-        r1, w1 = os.pipe()
-        r2, w2 = os.pipe()
-        for fd in (r1, w1, r2, w2):
-            os.set_inheritable(fd, True)
+        for i in range(num_processes):
+            r1, w1 = os.pipe()
+            r2, w2 = os.pipe()
+            for fd in (r1, w1, r2, w2):
+                os.set_inheritable(fd, True)
+            pipes.append(Pipes(r1, w1, r2, w2))
 
-        interactor_args = [os.path.basename(input_name), 'out']
+        interactor_args = [str(num_processes)]
+        # interactor_args = [os.path.basename(input_name), 'out', num_processes]
+        for i in range(num_processes):
+            interactor_args.append(f'{pipes[i].r_interactor} {pipes[i].w_interactor}')
 
         interactor_time_limit = 2 * environ['exec_time_limit']
 
@@ -137,52 +158,65 @@ def _run(environ, executor, use_sandboxes):
                         self.value = self.executor(*self.args, **self.kwargs)
                     except Exception as e:
                         self.exception = e
+        with open(input_name, 'rb') as infile, open(tempcwd('out'), 'wb') as outfile:
+            processes = []
+            fds_to_close = []
+            for pipe in pipes:
+                fds_to_close.extend([pipe.r_interactor, pipe.w_interactor, pipe.r_solution, pipe.w_solution])
+            with interactor_executor as ie:
+                interactor = ExecutionWrapper(
+                    ie,
+                    [tempcwd(interactor_filename)] + interactor_args,
+                    stdin=infile,
+                    stdout=outfile,
+                    ignore_errors=True,
+                    environ=environ,
+                    environ_prefix='interactor_',
+                    mem_limit=DEFAULT_INTERACTOR_MEM_LIMIT,
+                    time_limit=interactor_time_limit,
+                    fds_to_close=fds_to_close,
+                    cwd=tempcwd(),
+                )
 
-        with interactor_executor as ie:
-            interactor = ExecutionWrapper(
-                ie,
-                [tempcwd(interactor_filename)] + interactor_args,
-                stdin=r2,
-                stdout=w1,
-                ignore_errors=True,
-                environ=environ,
-                environ_prefix='interactor_',
-                mem_limit=DEFAULT_INTERACTOR_MEM_LIMIT,
-                time_limit=interactor_time_limit,
-                fds_to_close=(r2, w1),
-                close_passed_fd=True,
-                cwd=tempcwd(),
-                in_file=environ['in_file'],
-            )
+            for i in range(num_processes):
+                with file_executor as fe:
+                    exe = ExecutionWrapper(
+                        fe,
+                        tempcwd(exe_filename),
+                        [str(i)],
+                        stdin=r1,
+                        stdout=w2,
+                        ignore_errors=True,
+                        environ=environ,
+                        environ_prefix='exec_',
+                        fds_to_close=fds_to_close,
+                        cwd=tempcwd(),
+                    )
+                    processes.append(exe)
 
-        with file_executor as fe:
-            exe = ExecutionWrapper(
-                fe,
-                tempcwd(exe_filename),
-                [],
-                stdin=r1,
-                stdout=w2,
-                ignore_errors=True,
-                environ=environ,
-                environ_prefix='exec_',
-                fds_to_close=(r1, w2),
-                close_passed_fd=True,
-                cwd=tempcwd(),
-                in_file=environ['in_file'],
-            )
+            for process in processes:
+                process.start()
+            interactor.start()
 
-        exe.start()
-        interactor.start()
+            for process in processes:
+                process.join()
+            interactor.join()
 
-        exe.join()
-        interactor.join()
+            if interactor.exception:
+                raise interactor.exception
+            for process in processes:
+                if process.exception:
+                    raise process.exception
 
-        for ew in (exe, interactor):
-            if ew.exception is not None:
-                raise ew.exception
+            renv = processes[0].value
+            for process in processes:
+                if process.value['result_code'] != 'OK':
+                    renv = process.value
+                    break
+                renv['time_used'] = max(renv['time_used'], process.value['time_used'])
+                renv['mem_used'] = max(renv['mem_used'], process.value['mem_used'])
 
-        renv = exe.value
-        irenv = interactor.value
+            irenv = interactor.value
 
         try:
             with open(tempcwd('out'), 'rb') as result_file:
