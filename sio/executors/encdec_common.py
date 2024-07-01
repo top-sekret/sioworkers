@@ -4,7 +4,7 @@ import logging
 from shutil import rmtree
 import tempfile
 from zipfile import ZipFile, is_zipfile
-from sio.executors.checker import _limit_length
+from sio.executors.checker import _limit_length, output_to_fraction
 from sio.executors.common import _run_core
 from sio.workers import ft
 from sio.workers.executors import ExecError, PRootExecutor, UnprotectedExecutor
@@ -170,7 +170,7 @@ def _run_checker(environ, use_sandboxes=False):
         environ['checker_result_code'] = 'OK'
         if output[1]:
             environ['checker_result_string'] = _limit_length(output[1]).decode('utf-8')
-        environ['checker_result_percentage'] = float(output[2] or 100)
+        environ['checker_result_percentage'] = output_to_fraction(output[2])
         return True
     else:
         environ['failed_step'] = 'checker'
