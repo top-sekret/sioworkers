@@ -134,7 +134,7 @@ def _run(environ, executor, use_sandboxes):
             r2, w2 = os.pipe()
             for fd in (r1, w1, r2, w2):
                 os.set_inheritable(fd, True)
-            pipes.append(Pipes(r1, w1, r2, w2))
+            pipes.append(Pipes(r1, w2, r2, w1))
 
         interactor_args = [str(num_processes)]
         # interactor_args = [os.path.basename(input_name), 'out', num_processes]
@@ -179,13 +179,14 @@ def _run(environ, executor, use_sandboxes):
                 )
 
             for i in range(num_processes):
+                process = pipes[i]
                 with file_executor as fe:
                     exe = ExecutionWrapper(
                         fe,
                         tempcwd(exe_filename),
                         [str(i)],
-                        stdin=r1,
-                        stdout=w2,
+                        stdin=process.r_solution,
+                        stdout=process.w_solution,
                         ignore_errors=True,
                         environ=environ,
                         environ_prefix='exec_',
