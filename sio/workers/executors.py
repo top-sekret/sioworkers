@@ -736,14 +736,6 @@ class Sio2JailExecutor(CompoundSandboxExecutor, _SIOSupervisedExecutor):
 
         kwargs['ignore_errors'] = True
         return execute_command(command, **kwargs)
-    
-    def _execute(self):
-        renv = super(Sio2JailExecutor, self)._execute()
-        logger.info('xdd' + str(renv['result_string']))
-        renv['exit_signal'] = int(
-            renv['result_string'][len('process exited due to signal '):]
-        )
-        return renv
 
 
 class SupervisedExecutor(_SIOSupervisedExecutor):
