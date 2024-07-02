@@ -565,9 +565,9 @@ class _SIOSupervisedExecutor(SandboxExecutor):
         renv['result_code'] = result_code
         renv['return_code'] = exit_code
 
-        if str(renv['result_string']).startswith('process exited due to signal'):
+        if renv['result_string'].decode('utf-8').startswith('process exited due to signal'):
             renv['exit_signal'] = int(
-                str(renv['result_string'])[len('process exited due to signal '):]
+                renv['result_string'].decode('utf-8')[len('process exited due to signal '):]
             )
 
         if result_code != 'OK' and not ignore_errors and not \

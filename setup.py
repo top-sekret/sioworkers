@@ -117,6 +117,9 @@ setup(
             'python_3_11_numpy_amd64 = sio.compilers.python:run_python3_11_numpy_amd64',
             'py = sio.compilers.python:run_python_default',
 
+            # Compiler for output only tasks solutions
+            'output-only = sio.compilers.output:run',
+
             # Non-sandboxed compilers
             'system-c = sio.compilers.system_gcc:run_gcc',
             'system-gcc = sio.compilers.system_gcc:run_gcc',
