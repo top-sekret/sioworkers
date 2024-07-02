@@ -139,7 +139,7 @@ def _run(environ, executor, use_sandboxes):
         interactor_args = [str(num_processes)]
         # interactor_args = [os.path.basename(input_name), 'out', num_processes]
         for i in range(num_processes):
-            interactor_args.append(f'{pipes[i].r_interactor} {pipes[i].w_interactor}')
+            interactor_args.extend([str(pipes[i].r_interactor), str(pipes[i].w_interactor)])
 
         interactor_time_limit = 2 * environ['exec_time_limit']
 
