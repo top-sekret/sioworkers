@@ -192,7 +192,7 @@ def _run(environ, executor, use_sandboxes):
                         environ=environ,
                         environ_prefix='exec_',
                         fds_to_close=[process.r_solution, process.w_solution],
-                        pass_fds=[process.r_solution, process.w_solution],
+                        # pass_fds=[process.r_solution, process.w_solution],
                         cwd=tempcwd(),
                     )
                     processes.append(exe)
