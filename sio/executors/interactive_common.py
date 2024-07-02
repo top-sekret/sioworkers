@@ -160,9 +160,9 @@ def _run(environ, executor, use_sandboxes):
                         self.exception = e
         with open(input_name, 'rb') as infile, open(tempcwd('out'), 'wb') as outfile:
             processes = []
-            fds_to_close = []
+            interactor_fds_to_close = []
             for pipe in pipes:
-                fds_to_close.extend([pipe.r_interactor, pipe.w_interactor, pipe.r_solution, pipe.w_solution])
+                interactor_fds_to_close.extend([pipe.r_interactor, pipe.w_interactor])
             with interactor_executor as ie:
                 interactor = ExecutionWrapper(
                     ie,
@@ -174,7 +174,7 @@ def _run(environ, executor, use_sandboxes):
                     environ_prefix='interactor_',
                     mem_limit=DEFAULT_INTERACTOR_MEM_LIMIT,
                     time_limit=interactor_time_limit,
-                    fds_to_close=fds_to_close,
+                    fds_to_close=interactor_fds_to_close,
                     cwd=tempcwd(),
                 )
 
@@ -190,7 +190,7 @@ def _run(environ, executor, use_sandboxes):
                         ignore_errors=True,
                         environ=environ,
                         environ_prefix='exec_',
-                        fds_to_close=fds_to_close,
+                        fds_to_close=[process.r_solution, process.w_solution],
                         cwd=tempcwd(),
                     )
                     processes.append(exe)
