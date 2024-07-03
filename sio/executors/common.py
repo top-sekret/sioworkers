@@ -37,6 +37,7 @@ def _populate_environ(renv, environ):
         environ[key] = renv.get(key, 0)
     for key in ('result_code', 'result_string'):
         environ[key] = renv.get(key, '')
+    environ['result_percentage'] = renv.get('result_percentage', (0, 1))
 
 
 def _run_core(environ, file_executor, input_name, output_name, exe_filename, environ_prefix, use_sandboxes):
