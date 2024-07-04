@@ -82,7 +82,7 @@ def _fill_result(env, renv, irenv, interactor_out):
     inter_sig = irenv.get('exit_signal', None)
     sigpipe = signal.SIGPIPE.value
 
-    if irenv['result_code'] != 'OK' and inter_sig != sigpipe and interactor_out[0] == b'':
+    if irenv['result_code'] != 'OK' and irenv['result_code'] != 'TLE' and inter_sig != sigpipe and interactor_out[0] == b'':
         renv['result_code'] = 'SE'
         raise InteractorError(f'Interactor got {irenv["result_code"]}.', interactor_out, env, renv, irenv)
     elif renv['result_code'] != 'OK' and sol_sig != sigpipe:
