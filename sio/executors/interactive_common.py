@@ -82,18 +82,7 @@ def _fill_result(env, renv, irenv, interactor_out):
     inter_sig = irenv.get('exit_signal', None)
     sigpipe = signal.SIGPIPE.value
 
-    if irenv['result_code'] != 'OK' and irenv['result_code'] != 'TLE' and inter_sig != sigpipe and interactor_out[0] == b'':
-        renv['result_code'] = 'SE'
-        raise InteractorError(f'Interactor got {irenv["result_code"]}.', interactor_out, env, renv, irenv)
-    elif renv['result_code'] != 'OK' and sol_sig != sigpipe:
-        return
-    elif len(interactor_out) == 0:
-        renv['result_code'] = 'SE'
-        raise InteractorError(f'Empty interactor out.', interactor_out, env, renv, irenv)
-    elif inter_sig == sigpipe:
-        renv['result_code'] = 'WA'
-        renv['result_string'] = 'solution exited prematurely'
-    else:
+    if six.ensure_binary(interactor_out[0]) != b'':
         renv['result_string'] = ''
         if six.ensure_binary(interactor_out[0]) == b'OK':
             renv['result_code'] = 'OK'
@@ -105,7 +94,19 @@ def _fill_result(env, renv, irenv, interactor_out):
             if interactor_out[1]:
                 renv['result_string'] = _limit_length(interactor_out[1])
             renv['result_percentage'] = (0, 1)
-
+    elif irenv['result_code'] != 'OK' and irenv['result_code'] != 'TLE' and inter_sig != sigpipe:
+        renv['result_code'] = 'SE'
+        raise InteractorError(f'Interactor got {irenv["result_code"]}.', interactor_out, env, renv, irenv)
+    elif renv['result_code'] != 'OK' and sol_sig != sigpipe:
+        return
+    elif len(interactor_out) == 0:
+        renv['result_code'] = 'SE'
+        raise InteractorError(f'Empty interactor out.', interactor_out, env, renv, irenv)
+    elif inter_sig == sigpipe:
+        renv['result_code'] = 'WA'
+        renv['result_string'] = 'solution exited prematurely'
+    else:
+        raise InteractorError(f'WTF????//', interactor_out, env, renv, irenv)
 
 def _run(environ, executor, use_sandboxes):
     input_name = tempcwd('in')
