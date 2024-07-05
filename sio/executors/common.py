@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import os
 import logging
+import tempfile
 from shutil import rmtree
 from zipfile import ZipFile, is_zipfile
 from sio.archive_utils import Archive, UnrecognizedArchiveFormat, UnsafeArchive
@@ -122,20 +123,21 @@ def _fake_run_as_exe_is_output_file(environ):
         problem_short_name = environ['problem_short_name']
         test_name = f'{problem_short_name}{environ["name"]}.out'
         logger.info('Archive with outs provided: ' + str(archive.filenames()))
-        archive_file = None
-        for name in archive.filenames():
-            if os.path.basename(name) == test_name:
-                archive_file = name
-                break
-        if archive_file:
-            archive.extract(archive_file, to_path=tempcwd())
-            os.rename(os.path.join(tempcwd(), os.path.basename(archive_file)), tempcwd('out'))
-        else:
-            logger.info(f'Output {test_name} not found in archive')
-            return {
-                'result_code': 'WA',
-                'result_string': 'output not provided',
-            }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            archive_file = None
+            for name in archive.filenames():
+                if os.path.basename(name) == test_name:
+                    archive_file = name
+                    break
+            if archive_file:
+                archive.extract(archive_file, to_path=tmpdir)
+                os.rename(os.path.join(tmpdir, archive_file), tempcwd('out'))
+            else:
+                logger.info(f'Output {test_name} not found in archive')
+                return {
+                    'result_code': 'WA',
+                    'result_string': 'output not provided',
+                }
     except UnrecognizedArchiveFormat as e:
         # regular text file
         logger.info('Text out provided')
