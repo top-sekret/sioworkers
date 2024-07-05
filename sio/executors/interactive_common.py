@@ -105,6 +105,9 @@ def _fill_result(env, renv, irenv, interactor_out):
     elif inter_sig == sigpipe:
         renv['result_code'] = 'WA'
         renv['result_string'] = 'solution exited prematurely'
+    elif irenv.get('real_time_killed', False):
+        renv['result_code'] = 'TLE'
+        renv['result_string'] = 'interactor time limit exceeded'
     else:
         raise InteractorError(f'WTF????//', interactor_out, env, renv, irenv)
 
