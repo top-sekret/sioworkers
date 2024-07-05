@@ -121,10 +121,15 @@ def _fake_run_as_exe_is_output_file(environ):
         archive = Archive.get(tempcwd('outs_archive'))
         problem_short_name = environ['problem_short_name']
         test_name = f'{problem_short_name}{environ["name"]}.out'
-        logger.info('Archive with outs provided')
-        if test_name in archive.filenames():
-            archive.extract(test_name, to_path=tempcwd())
-            os.rename(os.path.join(tempcwd(), test_name), tempcwd('out'))
+        logger.info('Archive with outs provided: ' + str(archive.filenames()))
+        archive_file = None
+        for name in archive.filenames():
+            if os.path.basename(name) == test_name:
+                archive_file = name
+                break
+        if archive_file:
+            archive.extract(archive_file, to_path=tempcwd())
+            os.rename(os.path.join(tempcwd(), os.path.basename(archive_file)), tempcwd('out'))
         else:
             logger.info(f'Output {test_name} not found in archive')
             return {
