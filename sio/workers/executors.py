@@ -893,7 +893,7 @@ class BasicIsolateExecutor(UnprotectedExecutor):
         kwargs["real_time_limit"] = 10 * 60 * 1000
         kwargs["capture_output"] = True
 
-        command = ['isolate'] + \
+        command = ['/opt/isolate/bin/isolate'] + \
                   self.flags(**kwargs) + \
                   ['--onetime', '--'] + \
                   self.cmdline()
