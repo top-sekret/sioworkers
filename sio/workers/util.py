@@ -18,6 +18,9 @@ def first_entry_point(group, name=None):
         except ImportError as e:
             logger.warning('ImportError: %s: %s' % (ep, e,))
             pass
+        except pkg_resources.RequirementParseError as e:
+            logger.warning('RequirementParseError: %s: %s' % (ep, e,))
+            pass
     raise RuntimeError("Module providing '%s:%s' not found" %
             (group, name or ''))
 
