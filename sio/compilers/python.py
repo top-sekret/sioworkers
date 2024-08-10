@@ -87,7 +87,7 @@ class PythonCompiler(Compiler):
             o_files = f.readline().strip('\n').split()
             res_exe = f.readline().strip('\n')
 
-        stdout = ''
+        stdout = b''
         for cxx_file in cxx_files:
             compile_lib = [gxx] + cxxflags + ['-c', cxx_file]
             renv = self._execute(executor, compile_lib)
