@@ -627,7 +627,7 @@ class PRootExecutor(BaseExecutor):
     def __init__(self, sandbox):
         """``sandbox`` has to be a sandbox name."""
         self.chroot = get_sandbox(sandbox)
-        if sandbox.endswith('amd64') or sandbox == 'compiler-gcc.12_2_0' or sandbox.startswith('compiler-nasm'): # TEMPFIX
+        if sandbox.endswith('amd64') or sandbox == 'compiler-gcc.12_2_0' or sandbox.startswith('compiler-nasm') or sandbox.startswith('compiler-gas'): # TEMPFIX
             self.proot = SandboxExecutor('proot-sandbox-amd64')
         else:
             self.proot = SandboxExecutor('proot-sandbox')
