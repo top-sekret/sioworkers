@@ -72,6 +72,7 @@ setup(
             'default-py = sio.compilers.python:run_python',
             'default-hs = sio.compilers.haskell:run_haskell',
             'default-ml = sio.compilers.ocaml:run_ocaml',
+            'default-nasm = sio.compilers.nasm:run',
 
             # Sandboxed compilers:
             'c = sio.compilers.gcc:run_gcc',
