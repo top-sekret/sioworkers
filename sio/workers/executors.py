@@ -65,7 +65,8 @@ def execute_command(command, env=None, split_lines=False, stdin=None,
                     stdout=None, stderr=None, forward_stderr=False,
                     capture_output=False, output_limit=None,
                     real_time_limit=None,
-                    ignore_errors=False, extra_ignore_errors=(), **kwargs):
+                    ignore_errors=False, extra_ignore_errors=(),
+                    cwd=None, pass_fds=(), fds_to_close=(), **kwargs):
     """Utility function to run arbitrary command.
        ``stdin``
          Could be either file opened with ``open(fname, 'r')``
@@ -109,7 +110,9 @@ def execute_command(command, env=None, split_lines=False, stdin=None,
     stdout = stdout or devnull
     stderr = stderr or devnull
 
+    cwd = cwd or tempcwd()
     ret_env = {}
+
     if env is not None:
         for key, value in env.iteritems():
             env[key] = str(value)
@@ -122,10 +125,14 @@ def execute_command(command, env=None, split_lines=False, stdin=None,
                                 or stderr,
                          shell=True,
                          close_fds=True,
+                         #pass_fds=pass_fds,
                          universal_newlines=True,
                          env=env,
-                         cwd=tempcwd(),
+                         cwd=cwd,
                          preexec_fn=os.setpgrp)
+
+    for fd in fds_to_close:
+        os.close(fd)
 
     kill_timer = None
     if real_time_limit:
@@ -158,7 +165,6 @@ def execute_command(command, env=None, split_lines=False, stdin=None,
     if rc and not ignore_errors and rc not in extra_ignore_errors:
         raise ExecError('Failed to execute command: %s. Returned with code %s\n'
                         % (command, rc))
-
     return ret_env
 
 
@@ -367,8 +373,9 @@ class DetailedUnprotectedExecutor(UnprotectedExecutor):
             renv['result_string'] = 'ok'
             renv['result_code'] = 'OK'
         elif renv['return_code'] > 128:  # os.WIFSIGNALED(1) returns True
+            renv['exit_signal'] = os.WTERMSIG(renv['return_code'])
             renv['result_string'] = 'program exited due to signal %d' \
-                                    % os.WTERMSIG(renv['return_code'])
+                                    % renv['exit_signal']
             renv['result_code'] = 'RE'
         else:
             renv['result_string'] = 'program exited with code %d' \
@@ -929,14 +936,36 @@ class IsolateExecutor(BasicIsolateExecutor):
     def cmdline(self):
         return [os.path.join(self.mapped_dir, self.exe_filename)]
 
+    def _read_all_from_fd(self, fd):
+        if type(fd) is int:
+            data = ''
+            while True:
+                chunk = os.read(fd, 4096)
+                if not chunk:
+                    break
+                data += chunk
+            return data
+        else:
+            return fd.read()
+
+    def _write_all_to_fd(self, fd, data):
+        if type(fd) is int:
+            while data:
+                count = os.write(fd, data)
+                if not count:
+                    break
+                data = data[count:]
+        else:
+            fd.write(data)
+
     def _execute(self, command, **kwargs):
         self.add_file(self.exe_filename, 0o755, command[0], None)
-        self.add_file(self.in_filename, 0o744, None, kwargs['stdin'].read())
+        self.add_file(self.in_filename, 0o744, None, self._read_all_from_fd(kwargs['stdin']))
         self.add_file(self.out_filename, 0o766, None, None)
         self.add_file(self.err_filename, 0o766, None, None)
 
         renv = super(IsolateExecutor, self)._execute(command, **kwargs)
-        kwargs['stdout'].write(open(os.path.join(self.isolate_root, self.out_filename), 'r').read())
+        self._write_all_to_fd(kwargs['stdout'], open(os.path.join(self.isolate_root, self.out_filename), 'r').read())
         renv = self.build_renv(renv)
         renv['return_code'] = self.meta.get('exitcode', 0)
         renv['stderr'] = limit_stderr(1024*256, open(os.path.join(self.isolate_root, self.err_filename), 'r').read())
