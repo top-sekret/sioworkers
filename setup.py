@@ -70,6 +70,7 @@ setup(
             # Default extension compilers:
             'default-c = sio.compilers.gcc:run_default_c',
             'default-cc = sio.compilers.gcc:run_default_cpp',
+            'default-cipp = sio.compilers.cipp:run',
             'default-cpp = sio.compilers.gcc:run_default_cpp',
             'default-pas = sio.compilers.fpc:run_default',
             'default-java = sio.compilers.java:run_default',
