@@ -55,6 +55,7 @@ setup(
             'exec = sio.executors.executor:run',
             'interactive-exec = sio.executors.executor:interactive_run',
             'vcpu-exec = sio.executors.vcpu_exec:run',
+            'vcpu_exec = sio.executors.vcpu_exec:run',
             'vcpu-interactive-exec = sio.executors.vcpu_exec:interactive_run',
             'cpu-exec = sio.executors.executor:run',
             'cpu-interactive-exec = sio.executors.executor:interactive_run',
