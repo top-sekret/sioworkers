@@ -621,6 +621,7 @@ class Sio2JailExecutor(SandboxExecutor):
                 str(kwargs['time_limit'] or self.DEFAULT_TIME_LIMIT) + 'ms',
             ]
             options += ['-o', 'oireal']
+            options += ['--perf', 'off']
         else:
             options += [
                 '--instruction-count-limit',
@@ -800,7 +801,7 @@ class PRootExecutor(BaseExecutor):
     def __init__(self, sandbox):
         """``sandbox`` has to be a sandbox name."""
         self.chroot = get_sandbox(sandbox)
-        self.proot = SandboxExecutor('proot-sandbox')
+        self.proot = SandboxExecutor('proot-sandbox_amd64')
 
         self.options = []
         with self.chroot:
