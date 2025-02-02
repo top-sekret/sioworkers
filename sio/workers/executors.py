@@ -836,7 +836,7 @@ class BasicIsolateExecutor(UnprotectedExecutor):
         flags.append('--mem=%d' % self.memory_limit)
 
         # fsize limit
-	flags.append('--fsize=%d' % (1024*20))
+	flags.append('--fsize=%d' % (1024*50))
 
 	processes = kwargs['environ'].get('processes', 1)
 	if processes > 1:
@@ -988,7 +988,7 @@ class TerrariumExecutor(BasicIsolateExecutor):
         self.err_filename = 'rw/err'
 
         self.init_subdirectories()
-        
+
         os.chmod(os.path.join(self.isolate_root, 'rw'), 0o777)
 
     def __enter__(self):
