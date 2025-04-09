@@ -32,6 +32,8 @@ def _run_checker(env, use_sandboxes=False):
 
     # same for testlib and sinol checkers
     command = ['./chk', 'in', 'out', 'hint']
+    if 'user_id' in env:
+        command += [str(env['user_id'])]
 
     def execute_checker(with_stderr=False):
         if env.get('untrusted_checker', False) and use_sandboxes:
