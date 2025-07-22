@@ -88,7 +88,7 @@ def _run_checker(env, use_sandboxes=False):
 
 
 def _run_compare(env, format):
-    e = SandboxExecutor('oicompare-sandbox-v1.0.2')
+    e = SandboxExecutor('oicompare-sandbox-v1.0.3')
     renv = _run_in_executor(
         env, [os.path.join('bin', 'oicompare'), 'hint', 'out', format], e, ignore_errors=True
     )
