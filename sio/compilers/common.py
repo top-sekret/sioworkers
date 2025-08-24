@@ -66,8 +66,6 @@ class Compiler(object):
             self.executor = TerrariumExecutor()
         elif self.lang == 'ml':
             self.executor = SandboxExecutor('compiler-ocaml')
-        elif self.lang == 'speech_to_text':
-            self.executor = SandboxExecutor('compiler-speech_to_text')
         else:
             self.executor = PRootExecutor('compiler-' + self.sandbox)
 
