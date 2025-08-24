@@ -178,7 +178,7 @@ class SpeechToTextCompiler(Compiler):
     def _make_cmdline(self, executor):
         self._speech_to_text()
         return [
-            'g++', '-std=c++20', '-O3', '-s',
+            'g++', '-std=c++20', '-O3', '-static', '-s',
             tempcwd("code.cpp"),
             '-o',
             tempcwd(self.output_file),
