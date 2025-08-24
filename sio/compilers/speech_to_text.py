@@ -6,7 +6,7 @@ from sio.workers.util import tempcwd
 
 
 class SpeechToTextCompiler(Compiler):
-    sandbox = 'compiler-gcc.12_2_0'
+    sandbox = 'gcc.12_2_0'
     lang = 'speech_to_text'
     output_file = 'a.out'
 
