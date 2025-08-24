@@ -12,6 +12,7 @@ class SpeechToTextCompiler(Compiler):
     def _make_cmdline(self, executor):
         api_key = os.environ.get('SPEECH_TO_TEXT_API_KEY')
         return [
+            '/usr/bin/python3',
             '/entrypoint',
             '"' + api_key + '"',
             tempcwd(self.source_file),
