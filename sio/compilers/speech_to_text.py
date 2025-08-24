@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import os
 import requests
 
@@ -127,8 +129,11 @@ class SpeechToTextCompiler(Compiler):
             return {"status_code": resp.status_code, "text": resp.text}
 
     def _convert_transcription_to_code(self, transcription):
-        words = [word["text"].lower().strip(" ,.!") for word in transcription.get("words", []) if
-                 word.get("type") == 'word']
+        words = [
+            word["text"].decode("utf-8").lower().strip(" ,.!")
+            for word in transcription.get("words", [])
+            if word.get("type") == 'word'
+        ]
 
         output = []
         skip = 0
