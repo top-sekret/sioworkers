@@ -80,7 +80,7 @@ setup(
             'default-ml = sio.compilers.ocaml:run_ocaml',
             'default-nasm = sio.compilers.nasm:run',
             'default-gas = sio.compilers.gas:run',
-            'default-speech-to-text = sio.compilers.speech_to_text:run',
+            'default-mp3 = sio.compilers.speech_to_text:run',
 
             # Sandboxed compilers:
             'c = sio.compilers.gcc:run_gcc',
