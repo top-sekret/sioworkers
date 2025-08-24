@@ -41,6 +41,7 @@ setup(
         'vine==1.3.0',
         'zipp',
         'zope.interface==5.2.0',
+        'requests',
     ],
 
     setup_requires = [
