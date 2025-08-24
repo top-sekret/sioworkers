@@ -162,7 +162,7 @@ class SpeechToTextCompiler(Compiler):
         result = self._transcribe_file(api_key, tempcwd(self.source_file))
         code = self._convert_transcription_to_code(result)
         with open(tempcwd("code.cpp"), "w") as f:
-            f.write(code)
+            f.write(code.encode('utf-8'))
 
 
     def _make_cmdline(self, executor):
