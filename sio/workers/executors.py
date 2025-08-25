@@ -926,12 +926,20 @@ class IsolateExecutor(BasicIsolateExecutor):
         self.init_subdirectories()
 
     def flags(self, **kwargs):
-        return super(IsolateExecutor, self).flags(**kwargs) + [
-            noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)),
-            noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.out_filename)),
-            noquote('--stderr="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
-            #'--seccomp'
-        ]
+        if kwargs['stdout'] is None:
+            return super(IsolateExecutor, self).flags(**kwargs) + [
+                noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)),
+                noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
+                noquote('--stderr="%s"' % os.path.join(self.mapped_dir, self.out_filename)),
+                #'--seccomp'
+            ]
+        else:
+            return super(IsolateExecutor, self).flags(**kwargs) + [
+                noquote('--stdin="%s"' % os.path.join(self.mapped_dir, self.in_filename)),
+                noquote('--stdout="%s"' % os.path.join(self.mapped_dir, self.out_filename)),
+                noquote('--stderr="%s"' % os.path.join(self.mapped_dir, self.err_filename)),
+                #'--seccomp'
+            ]
 
     def cmdline(self):
         return [os.path.join(self.mapped_dir, self.exe_filename)]
