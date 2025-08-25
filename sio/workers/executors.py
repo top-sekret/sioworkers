@@ -965,7 +965,7 @@ class IsolateExecutor(BasicIsolateExecutor):
         self.add_file(self.err_filename, 0o766, None, None)
 
         renv = super(IsolateExecutor, self)._execute(command, **kwargs)
-        if kwargs.get('stderr_as_stdout', False) and kwargs['stdout'] is None:
+        if kwargs['stdout'] is None:
             self._write_all_to_fd(kwargs['stderr'], open(os.path.join(self.isolate_root, self.out_filename), 'r').read())
         else:
             self._write_all_to_fd(kwargs['stdout'], open(os.path.join(self.isolate_root, self.out_filename), 'r').read())
