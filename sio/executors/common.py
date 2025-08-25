@@ -69,10 +69,16 @@ def run(environ, executor, use_sandboxes=True):
         with file_executor as fe:
             with open(input_name, 'rb') as inf:
                 with open(tempcwd('out'), 'wb') as outf:
-                   feedback.judge_started(environ)
-                   renv = fe(tempcwd(exe_filename), [],
-                              stdin=inf, stdout=outf, ignore_errors=True,
-                              environ=environ, environ_prefix='exec_')
+                    feedback.judge_started(environ)
+                    if environ.get('stderr_as_stdout', False):
+                        renv = fe(tempcwd(exe_filename), [],
+                                    stdin=inf, stdout=None, stderr=outf, ignore_errors=True,
+                                    environ=environ, environ_prefix='exec_',
+                                    forward_stderr=environ.get('stderr_as_stdout', False))
+                    else:
+                        renv = fe(tempcwd(exe_filename), [],
+                                    stdin=inf, stdout=outf, ignore_errors=True,
+                                    environ=environ, environ_prefix='exec_')
 
         _populate_environ(renv, environ)
 
